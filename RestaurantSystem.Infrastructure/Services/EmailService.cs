@@ -38,14 +38,22 @@ public class EmailService : IEmailService
                 UseDefaultCredentials = false
             };
 
+            var fromAddress = new MailAddress(_fromEmail, "Restaurant System");
             var message = new MailMessage
             {
-                From = new MailAddress(_fromEmail),
+                From = fromAddress,
                 Subject = "Email Verification",
-                Body = $"Your verification code is: {verificationCode}",
-                IsBodyHtml = false
+                IsBodyHtml = true // We'll add both views
             };
             message.To.Add(email);
+
+            string plainTextBody = $"Hello,\n\nYour verification code is: {verificationCode}\n\nThank you for registering with Restaurant System!\n\nBest regards,\nThe Restaurant System Team";
+            string htmlBody = $@"<html><body><p>Hello,</p><p>Your verification code is: <b>{verificationCode}</b></p><p>Thank you for registering with <b>Restaurant System</b>!</p><p>Best regards,<br/>The Restaurant System Team</p></body></html>";
+
+            var plainView = AlternateView.CreateAlternateViewFromString(plainTextBody, null, "text/plain");
+            var htmlView = AlternateView.CreateAlternateViewFromString(htmlBody, null, "text/html");
+            message.AlternateViews.Add(plainView);
+            message.AlternateViews.Add(htmlView);
 
             await client.SendMailAsync(message);
             _logger.LogInformation($"Verification email sent to {email} successfully.");
