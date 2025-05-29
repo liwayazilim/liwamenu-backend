@@ -1,0 +1,5 @@
+/Users/aboubacarelhacen/work/api/RestaurantSystem.Application/obj/Debug/net8.0/RestaurantSystem.Application.csproj.AssemblyReference.cache
+/Users/aboubacarelhacen/work/api/RestaurantSystem.Application/obj/Debug/net8.0/RestaurantSystem.Application.GeneratedMSBuildEditorConfig.editorconfig
+/Users/aboubacarelhacen/work/api/RestaurantSystem.Application/obj/Debug/net8.0/RestaurantSystem.Application.AssemblyInfoInputs.cache
+/Users/aboubacarelhacen/work/api/RestaurantSystem.Application/obj/Debug/net8.0/RestaurantSystem.Application.AssemblyInfo.cs
+/Users/aboubacarelhacen/work/api/RestaurantSystem.Application/obj/Debug/net8.0/RestaurantSystem.Application.csproj.CoreCompileInputs.cache
