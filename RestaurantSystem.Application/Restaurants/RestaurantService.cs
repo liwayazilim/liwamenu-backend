@@ -2,65 +2,56 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using RestaurantSystem.Application.Restaurants.DTOs;
 using RestaurantSystem.Domain;
-using RestaurantSystem.Domain.Interfaces;
+using RestaurantSystem.Infrastructure;
 
 namespace RestaurantSystem.Application.Restaurants;
 
 public class RestaurantService
 {
-    private readonly IAppDbContext _context;
+    private readonly AppDbContext _context;
     private readonly IMapper _mapper;
 
-    public RestaurantService(IAppDbContext context, IMapper mapper)
+    public RestaurantService(AppDbContext context, IMapper mapper)
     {
         _context = context;
         _mapper = mapper;
     }
 
-    public async Task<IEnumerable<RestaurantDto>> GetAllAsync()
+    public async Task<List<RestaurantReadDto>> GetAllAsync()
     {
-        var restaurants = await _context.Restaurants
-            .Include(r => r.Categories)
-            .ThenInclude(c => c.Products)
-            .ToListAsync();
-
-        return _mapper.Map<IEnumerable<RestaurantDto>>(restaurants);
+        var entities = await _context.Restaurants.AsNoTracking().ToListAsync();
+        return _mapper.Map<List<RestaurantReadDto>>(entities);
     }
 
-    public async Task<RestaurantDto?> GetByIdAsync(Guid id)
+    public async Task<RestaurantReadDto?> GetByIdAsync(Guid id)
     {
-        var restaurant = await _context.Restaurants
-            .Include(r => r.Categories)
-            .ThenInclude(c => c.Products)
-            .FirstOrDefaultAsync(r => r.Id == id);
-
-        return restaurant == null ? null : _mapper.Map<RestaurantDto>(restaurant);
+        var entity = await _context.Restaurants.FindAsync(id);
+        return entity == null ? null : _mapper.Map<RestaurantReadDto>(entity);
     }
 
-    public async Task<RestaurantDto> CreateAsync(CreateRestaurantDto dto)
+    public async Task<RestaurantReadDto> CreateAsync(RestaurantCreateDto dto)
     {
-        var restaurant = _mapper.Map<Restaurant>(dto);
-        _context.Restaurants.Add(restaurant);
+        var entity = _mapper.Map<Restaurant>(dto);
+        entity.Id = Guid.NewGuid();
+        _context.Restaurants.Add(entity);
         await _context.SaveChangesAsync();
-        return _mapper.Map<RestaurantDto>(restaurant);
+        return _mapper.Map<RestaurantReadDto>(entity);
     }
 
-    public async Task<RestaurantDto?> UpdateAsync(Guid id, UpdateRestaurantDto dto)
+    public async Task<bool> UpdateAsync(Guid id, RestaurantUpdateDto dto)
     {
-        var restaurant = await _context.Restaurants.FindAsync(id);
-        if (restaurant == null) return null;
-
-        _mapper.Map(dto, restaurant);
+        var entity = await _context.Restaurants.FindAsync(id);
+        if (entity == null) return false;
+        _mapper.Map(dto, entity);
         await _context.SaveChangesAsync();
-        return _mapper.Map<RestaurantDto>(restaurant);
+        return true;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        var restaurant = await _context.Restaurants.FindAsync(id);
-        if (restaurant == null) return false;
-
-        _context.Restaurants.Remove(restaurant);
+        var entity = await _context.Restaurants.FindAsync(id);
+        if (entity == null) return false;
+        _context.Restaurants.Remove(entity);
         await _context.SaveChangesAsync();
         return true;
     }

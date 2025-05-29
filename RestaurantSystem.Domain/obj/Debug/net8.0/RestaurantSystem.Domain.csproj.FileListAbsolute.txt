@@ -9,3 +9,4 @@
 /Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/obj/Debug/net8.0/refint/RestaurantSystem.Domain.dll
 /Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/obj/Debug/net8.0/RestaurantSystem.Domain.pdb
 /Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/obj/Debug/net8.0/ref/RestaurantSystem.Domain.dll
+/Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/obj/Debug/net8.0/RestaurantSystem.Domain.sourcelink.json

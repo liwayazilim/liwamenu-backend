@@ -117,6 +117,9 @@
             "projectReferences": {
               "/Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/RestaurantSystem.Domain.csproj": {
                 "projectPath": "/Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/RestaurantSystem.Domain.csproj"
+              },
+              "/Users/aboubacarelhacen/work/api/RestaurantSystem.Infrastructure/RestaurantSystem.Infrastructure.csproj": {
+                "projectPath": "/Users/aboubacarelhacen/work/api/RestaurantSystem.Infrastructure/RestaurantSystem.Infrastructure.csproj"
               }
             }
           }
@@ -251,9 +254,6 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "/Users/aboubacarelhacen/work/api/RestaurantSystem.Application/RestaurantSystem.Application.csproj": {
-                "projectPath": "/Users/aboubacarelhacen/work/api/RestaurantSystem.Application/RestaurantSystem.Application.csproj"
-              },
               "/Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/RestaurantSystem.Domain.csproj": {
                 "projectPath": "/Users/aboubacarelhacen/work/api/RestaurantSystem.Domain/RestaurantSystem.Domain.csproj"
               }

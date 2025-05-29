@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using RestaurantSystem.Infrastructure;
 using RestaurantSystem.Application.Restaurants;
 using RestaurantSystem.Application.Users;
-using RestaurantSystem.Application.Common.Interfaces;
+using RestaurantSystem.Domain.Common.Interfaces;
 using RestaurantSystem.Infrastructure.Services;
 using AutoMapper;
 var builder = WebApplication.CreateBuilder(args);

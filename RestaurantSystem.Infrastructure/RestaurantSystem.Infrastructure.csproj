@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RestaurantSystem.Domain\RestaurantSystem.Domain.csproj" />
-    <ProjectReference Include="..\RestaurantSystem.Application\RestaurantSystem.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

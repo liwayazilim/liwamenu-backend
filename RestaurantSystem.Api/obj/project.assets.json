@@ -1760,7 +1760,8 @@
           "AutoMapper": "14.0.0",
           "FluentValidation": "12.0.0",
           "Microsoft.EntityFrameworkCore": "9.0.5",
-          "RestaurantSystem.Domain": "1.0.0"
+          "RestaurantSystem.Domain": "1.0.0",
+          "RestaurantSystem.Infrastructure": "1.0.0"
         },
         "compile": {
           "bin/placeholder/RestaurantSystem.Application.dll": {}
@@ -1786,7 +1787,6 @@
           "Microsoft.EntityFrameworkCore": "9.0.5",
           "Microsoft.EntityFrameworkCore.SqlServer": "9.0.5",
           "Microsoft.Extensions.Configuration.Binder": "9.0.5",
-          "RestaurantSystem.Application": "1.0.0",
           "RestaurantSystem.Domain": "1.0.0"
         },
         "compile": {

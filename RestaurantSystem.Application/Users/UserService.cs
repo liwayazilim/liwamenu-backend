@@ -1,19 +1,20 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using RestaurantSystem.Domain.Interfaces;
 using RestaurantSystem.Application.Users.DTOs;
 using RestaurantSystem.Domain;
+using RestaurantSystem.Infrastructure;
+using RestaurantSystem.Domain.Common.Interfaces;
 
 namespace RestaurantSystem.Application.Users;
 
 public class UserService
 {
-    private readonly IAppDbContext _context;
+    private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
     private static readonly Dictionary<string, (string Code, DateTime Expiry)> _verificationCodes = new();
 
-    public UserService(IAppDbContext context, IEmailService emailService)
+    public UserService(AppDbContext context, IEmailService emailService)
     {
         _context = context;
         _emailService = emailService;
