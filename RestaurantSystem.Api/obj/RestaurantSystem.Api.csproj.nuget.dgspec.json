@@ -285,13 +285,21 @@
               "target": "Package",
               "version": "[9.0.5, )"
             },
-            "Microsoft.EntityFrameworkCore.SqlServer": {
+            "Microsoft.Extensions.Configuration": {
               "target": "Package",
               "version": "[9.0.5, )"
             },
             "Microsoft.Extensions.Configuration.Binder": {
               "target": "Package",
               "version": "[9.0.5, )"
+            },
+            "Microsoft.Extensions.Configuration.json": {
+              "target": "Package",
+              "version": "[9.0.5, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[9.0.4, )"
             }
           },
           "imports": [
