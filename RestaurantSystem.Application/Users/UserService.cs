@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using RestaurantSystem.Application.Users.DTOs;
 using RestaurantSystem.Domain;
 using RestaurantSystem.Infrastructure;
@@ -13,6 +14,7 @@ public class UserService
     private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
     private static readonly Dictionary<string, (string Code, DateTime Expiry)> _verificationCodes = new();
+    private readonly PasswordHasher<User> _passwordHasher = new();
 
     public UserService(AppDbContext context, IEmailService emailService)
     {
@@ -31,7 +33,6 @@ public class UserService
         {
             Id = Guid.NewGuid(),
             Email = dto.Email,
-            PasswordHash = HashPassword(dto.Password),
             FirstName = dto.FirstName,
             LastName = dto.LastName,
             Tel = dto.Tel,
@@ -41,7 +42,7 @@ public class UserService
             Role = UserRole.Customer,
             IsVerified = false
         };
-
+        user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -84,15 +85,28 @@ public class UserService
         return (true, "Email verified successfully");
     }
 
-    private string HashPassword(string password)
+    private bool VerifyPassword(User user, string password)
     {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
+        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+        return result == PasswordVerificationResult.Success;
     }
 
     private string GenerateVerificationCode()
     {
         return new Random().Next(100000, 999999).ToString();
+    }
+
+    public async Task<(bool Success, string Message, User? User)> LoginAsync(string emailOrPhone, string password)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.Tel == emailOrPhone);
+        if (user == null)
+            return (false, "User not found", null);
+        if (!user.IsActive)
+            return (false, "User is not active", null);
+        if (!user.IsVerified)
+            return (false, "User is not verified", null);
+        if (!VerifyPassword(user, password))
+            return (false, "Invalid credentials", null);
+        return (true, "Login successful", user);
     }
 } 

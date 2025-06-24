@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace RestaurantSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class swwitchToPostgrDatabase : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,9 +15,9 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "PaymentMethods",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -28,20 +28,20 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DealerId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Tel = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Role = table.Column<int>(type: "int", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    IsVerified = table.Column<bool>(type: "bit", nullable: false),
-                    IsDealer = table.Column<bool>(type: "bit", nullable: false),
-                    City = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    District = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Neighbourhood = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    DealerId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PasswordHash = table.Column<string>(type: "text", nullable: false),
+                    FirstName = table.Column<string>(type: "text", nullable: false),
+                    LastName = table.Column<string>(type: "text", nullable: false),
+                    Tel = table.Column<string>(type: "text", nullable: false),
+                    Email = table.Column<string>(type: "text", nullable: false),
+                    Role = table.Column<int>(type: "integer", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    IsVerified = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDealer = table.Column<bool>(type: "boolean", nullable: false),
+                    City = table.Column<string>(type: "text", nullable: true),
+                    District = table.Column<string>(type: "text", nullable: true),
+                    Neighbourhood = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -52,14 +52,14 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "Licenses",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserPrice = table.Column<double>(type: "float", nullable: true),
-                    DealerPrice = table.Column<double>(type: "float", nullable: true),
-                    RestaurantId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    StartDateTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndDateTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserPrice = table.Column<double>(type: "double precision", nullable: true),
+                    DealerPrice = table.Column<double>(type: "double precision", nullable: true),
+                    RestaurantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StartDateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndDateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -76,28 +76,28 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "Restaurants",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DealerId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    LicenseId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Telefon = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    City = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    District = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Neighbourhood = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Address = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Lat = table.Column<double>(type: "float", nullable: false),
-                    Lng = table.Column<double>(type: "float", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    WorkingHours = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    MinDistance = table.Column<double>(type: "float", nullable: true),
-                    GoogleAnalytics = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    DefaultLang = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    InPersonOrder = table.Column<bool>(type: "bit", nullable: false),
-                    OnlineOrder = table.Column<bool>(type: "bit", nullable: false),
-                    Slogan1 = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Slogan2 = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Hide = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DealerId = table.Column<Guid>(type: "uuid", nullable: true),
+                    LicenseId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Telefon = table.Column<string>(type: "text", nullable: false),
+                    City = table.Column<string>(type: "text", nullable: false),
+                    District = table.Column<string>(type: "text", nullable: false),
+                    Neighbourhood = table.Column<string>(type: "text", nullable: true),
+                    Address = table.Column<string>(type: "text", nullable: false),
+                    Lat = table.Column<double>(type: "double precision", nullable: false),
+                    Lng = table.Column<double>(type: "double precision", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    WorkingHours = table.Column<string>(type: "text", nullable: true),
+                    MinDistance = table.Column<double>(type: "double precision", nullable: true),
+                    GoogleAnalytics = table.Column<string>(type: "text", nullable: true),
+                    DefaultLang = table.Column<string>(type: "text", nullable: true),
+                    InPersonOrder = table.Column<bool>(type: "boolean", nullable: false),
+                    OnlineOrder = table.Column<bool>(type: "boolean", nullable: false),
+                    Slogan1 = table.Column<string>(type: "text", nullable: true),
+                    Slogan2 = table.Column<string>(type: "text", nullable: true),
+                    Hide = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -120,10 +120,10 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "Categories",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RestaurantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    RestaurantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -140,14 +140,14 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "Orders",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RestaurantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    CustomerName = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CustomerTel = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    IsInPerson = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RestaurantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    CustomerName = table.Column<string>(type: "text", nullable: true),
+                    CustomerTel = table.Column<string>(type: "text", nullable: true),
+                    IsInPerson = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -170,8 +170,8 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "RestaurantPaymentMethods",
                 columns: table => new
                 {
-                    PaymentMethodsId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RestaurantsId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    PaymentMethodsId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RestaurantsId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -194,13 +194,13 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "Products",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CategoryId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    RestaurantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    CategoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RestaurantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    Price = table.Column<decimal>(type: "numeric", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -223,8 +223,8 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "OrderProducts",
                 columns: table => new
                 {
-                    OrdersId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ProductsId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    OrdersId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ProductsId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -287,8 +287,7 @@ namespace RestaurantSystem.Infrastructure.Migrations
                 name: "IX_Restaurants_LicenseId",
                 table: "Restaurants",
                 column: "LicenseId",
-                unique: true,
-                filter: "[LicenseId] IS NOT NULL");
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Restaurants_UserId",

@@ -1,11 +1,1 @@
-{
-  "Version": 1,
-  "Hash": "i22mcp9VZZKhFWXpUCeUG/pcragbLTeaIqwj7of14Uo=",
-  "Source": "RestaurantSystem.Api",
-  "BasePath": "_content/RestaurantSystem.Api",
-  "Mode": "Default",
-  "ManifestType": "Build",
-  "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
-  "Assets": []
-}
+{"Version":1,"Hash":"Bo2jE7gVFPNBvZRQtpl062HDj00SADiHLHlGt2e10uE=","Source":"RestaurantSystem.Api","BasePath":"_content/RestaurantSystem.Api","Mode":"Default","ManifestType":"Build","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}
