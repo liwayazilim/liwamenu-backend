@@ -1,11 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using RestaurantSystem.Application.Users;
-using RestaurantSystem.Application.Users.DTOs;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using RestaurantSystem.Application.Users.DTOs;
+using System;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace RestaurantSystem.Api.Controllers;
 
@@ -20,84 +19,52 @@ public class UsersController : ControllerBase
         _userService = userService;
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterUserDto dto)
+    // GET: api/users?search=...&page=1&pageSize=20
+    [HttpGet]
+    [Authorize(Roles = "Admin,Dealer")] // Only admin/dealer can list users
+    public async Task<ActionResult<object>> GetAll([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var (success, message) = await _userService.RegisterAsync(dto);
-        if (!success)
-        {
-            return BadRequest(new { message });
-        }
-        return Ok(new { message });
+        var (users, total) = await _userService.GetAllAsync(search, page, pageSize);
+        return Ok(new { total, users });
     }
 
-    [HttpPost("verify-email")]
-    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
+    // GET: api/users/{id}
+    [HttpGet("{id}")]
+    [Authorize(Roles = "Admin,Dealer")] // Only admin/dealer can get user details
+    public async Task<ActionResult<UserReadDto>> GetById(Guid id)
     {
-        var (success, message) = await _userService.VerifyEmailAsync(dto);
-        if (!success)
-        {
-            return BadRequest(new { message });
-        }
-        return Ok(new { message });
+        var user = await _userService.GetByIdAsync(id);
+        if (user == null) return NotFound();
+        return Ok(user);
     }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginUserDto dto, [FromServices] IConfiguration config)
+    // POST: api/users
+    [HttpPost]
+    [Authorize(Roles = "Admin,Dealer")] // Only admin/dealer can add users
+    public async Task<ActionResult<UserReadDto>> Create([FromBody] UserCreateDto dto)
     {
-        var (success, message, user) = await _userService.LoginAsync(dto.EmailOrPhone, dto.Password);
-        if (!success || user == null)
-            return BadRequest(new { message });
-
-        // Generate JWT
-        var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
-        };
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var token = new JwtSecurityToken(
-            issuer: config["Jwt:Issuer"],
-            audience: config["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.Now.AddDays(7),
-            signingCredentials: creds
-        );
-        var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-        return Ok(new { token = jwt });
+        var user = await _userService.CreateAsync(dto);
+        if (user == null) return BadRequest(new { message = "Email already exists." });
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
     }
 
-    [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+    // PUT: api/users/{id}
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,Dealer")] // Only admin/dealer can update users
+    public async Task<IActionResult> Update(Guid id, [FromBody] UserUpdateDto dto)
     {
-        var (success, message) = await _userService.ForgotPasswordAsync(dto.EmailOrPhone);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
+        var success = await _userService.UpdateAsync(id, dto);
+        if (!success) return NotFound();
+        return NoContent();
     }
 
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    // DELETE: api/users/{id}
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,Dealer")] // Only admin/dealer can delete users
+    public async Task<IActionResult> Delete(Guid id)
     {
-        var (success, message) = await _userService.ResetPasswordAsync(dto.EmailOrPhone, dto.Code, dto.NewPassword);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
-    }
-
-    [Authorize]
-    [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
-    {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-        if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
-            return Unauthorized(new { message = "Invalid user." });
-        var (success, message) = await _userService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
+        var success = await _userService.DeleteAsync(id);
+        if (!success) return NotFound();
+        return NoContent();
     }
 } 

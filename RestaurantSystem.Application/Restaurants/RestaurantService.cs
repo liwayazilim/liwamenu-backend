@@ -17,10 +17,27 @@ public class RestaurantService
         _mapper = mapper;
     }
 
-    public async Task<List<RestaurantReadDto>> GetAllAsync()
+    public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? search = null, string? city = null, bool? isActive = null, int page = 1, int pageSize = 20)
     {
-        var entities = await _context.Restaurants.AsNoTracking().ToListAsync();
-        return _mapper.Map<List<RestaurantReadDto>>(entities);
+        var query = _context.Restaurants.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(r => r.Name.Contains(search) || r.Address.Contains(search) || r.City.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(city))
+        {
+            query = query.Where(r => r.City == city);
+        }
+        if (isActive.HasValue)
+        {
+            query = query.Where(r => r.IsActive == isActive.Value);
+        }
+        var total = await query.CountAsync();
+        var restaurants = await query.OrderBy(r => r.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+        return (_mapper.Map<List<RestaurantReadDto>>(restaurants), total);
     }
 
     public async Task<RestaurantReadDto?> GetByIdAsync(Guid id)

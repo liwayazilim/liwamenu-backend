@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using RestaurantSystem.Application.Restaurants;
 using RestaurantSystem.Application.Restaurants.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace RestaurantSystem.Api.Controllers;
 
@@ -15,14 +16,17 @@ public class RestaurantController : ControllerBase
         _service = service;
     }
 
+    // GET: api/restaurant?search=...&city=...&isActive=...&page=1&pageSize=20
     [HttpGet]
-    public async Task<ActionResult<List<RestaurantReadDto>>> GetAll()
+    [Authorize(Roles = "Admin,Dealer,Owner")]
+    public async Task<ActionResult<object>> GetAll([FromQuery] string? search, [FromQuery] string? city, [FromQuery] bool? isActive, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var result = await _service.GetAllAsync();
-        return Ok(result);
+        var (restaurants, total) = await _service.GetAllAsync(search, city, isActive, page, pageSize);
+        return Ok(new { total, restaurants });
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin,Dealer,Owner")]
     public async Task<ActionResult<RestaurantReadDto>> GetById(Guid id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -31,6 +35,7 @@ public class RestaurantController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Dealer,Owner")]
     public async Task<ActionResult<RestaurantReadDto>> Create(RestaurantCreateDto dto)
     {
         var created = await _service.CreateAsync(dto);
@@ -38,6 +43,7 @@ public class RestaurantController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,Dealer,Owner")]
     public async Task<IActionResult> Update(Guid id, RestaurantUpdateDto dto)
     {
         var success = await _service.UpdateAsync(id, dto);
@@ -46,6 +52,7 @@ public class RestaurantController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,Dealer,Owner")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var success = await _service.DeleteAsync(id);
