@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 namespace RestaurantSystem.Api.Controllers;
 
@@ -67,5 +68,36 @@ public class UsersController : ControllerBase
         );
         var jwt = new JwtSecurityTokenHandler().WriteToken(token);
         return Ok(new { token = jwt });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+    {
+        var (success, message) = await _userService.ForgotPasswordAsync(dto.EmailOrPhone);
+        if (!success)
+            return BadRequest(new { message });
+        return Ok(new { message });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    {
+        var (success, message) = await _userService.ResetPasswordAsync(dto.EmailOrPhone, dto.Code, dto.NewPassword);
+        if (!success)
+            return BadRequest(new { message });
+        return Ok(new { message });
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized(new { message = "Invalid user." });
+        var (success, message) = await _userService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
+        if (!success)
+            return BadRequest(new { message });
+        return Ok(new { message });
     }
 } 

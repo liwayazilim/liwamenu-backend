@@ -14,6 +14,7 @@ public class UserService
     private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
     private static readonly Dictionary<string, (string Code, DateTime Expiry)> _verificationCodes = new();
+    private static readonly Dictionary<string, (string Code, DateTime Expiry)> _resetCodes = new();
     private readonly PasswordHasher<User> _passwordHasher = new();
 
     public UserService(AppDbContext context, IEmailService emailService)
@@ -108,5 +109,48 @@ public class UserService
         if (!VerifyPassword(user, password))
             return (false, "Invalid credentials", null);
         return (true, "Login successful", user);
+    }
+
+    public async Task<(bool Success, string Message)> ForgotPasswordAsync(string emailOrPhone)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.Tel == emailOrPhone);
+        if (user == null)
+            return (false, "User not found");
+        var code = GenerateVerificationCode();
+        _resetCodes[user.Email] = (code, DateTime.UtcNow.AddMinutes(15));
+        await _emailService.SendVerificationEmailAsync(user.Email, code);
+        return (true, "Password reset code sent to your email.");
+    }
+
+    public async Task<(bool Success, string Message)> ResetPasswordAsync(string emailOrPhone, string code, string newPassword)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.Tel == emailOrPhone);
+        if (user == null)
+            return (false, "User not found");
+        if (!_resetCodes.TryGetValue(user.Email, out var resetData))
+            return (false, "No reset code found for this user");
+        if (DateTime.UtcNow > resetData.Expiry)
+        {
+            _resetCodes.Remove(user.Email);
+            return (false, "Reset code has expired");
+        }
+        if (resetData.Code != code)
+            return (false, "Invalid reset code");
+        user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+        await _context.SaveChangesAsync();
+        _resetCodes.Remove(user.Email);
+        return (true, "Password has been reset successfully.");
+    }
+
+    public async Task<(bool Success, string Message)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return (false, "User not found");
+        if (!VerifyPassword(user, currentPassword))
+            return (false, "Current password is incorrect");
+        user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+        await _context.SaveChangesAsync();
+        return (true, "Password changed successfully.");
     }
 } 

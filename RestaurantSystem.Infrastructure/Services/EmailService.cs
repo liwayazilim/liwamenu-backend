@@ -31,21 +31,21 @@ public class EmailService : IEmailService
         try
         {
             _logger.LogInformation($"Attempting to send verification email to {email}.");
-            using var client = new SmtpClient(_smtpServer, _smtpPort)
-            {
-                Credentials = new System.Net.NetworkCredential(_smtpUsername, _smtpPassword),
+        using var client = new SmtpClient(_smtpServer, _smtpPort)
+        {
+            Credentials = new System.Net.NetworkCredential(_smtpUsername, _smtpPassword),
                 EnableSsl = true,
                 UseDefaultCredentials = false
-            };
+        };
 
             var fromAddress = new MailAddress(_fromEmail, "Restaurant System");
-            var message = new MailMessage
-            {
+        var message = new MailMessage
+        {
                 From = fromAddress,
-                Subject = "Email Verification",
+            Subject = "Email Verification",
                 IsBodyHtml = true // We'll add both views
-            };
-            message.To.Add(email);
+        };
+        message.To.Add(email);
 
             string plainTextBody = $"Hello,\n\nYour verification code is: {verificationCode}\n\nThank you for registering with Restaurant System!\n\nBest regards,\nThe Restaurant System Team";
             string htmlBody = $@"<html><body><p>Hello,</p><p>Your verification code is: <b>{verificationCode}</b></p><p>Thank you for registering with <b>Restaurant System</b>!</p><p>Best regards,<br/>The Restaurant System Team</p></body></html>";
@@ -55,7 +55,7 @@ public class EmailService : IEmailService
             message.AlternateViews.Add(plainView);
             message.AlternateViews.Add(htmlView);
 
-            await client.SendMailAsync(message);
+        await client.SendMailAsync(message);
             _logger.LogInformation($"Verification email sent to {email} successfully.");
         }
         catch (Exception ex)
