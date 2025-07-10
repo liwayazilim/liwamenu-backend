@@ -50,30 +50,17 @@ public class UserService
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        // Generate and send verification code
-        var verificationCode = GenerateVerificationCode();
-        _verificationCodes[dto.Email] = (verificationCode, DateTime.UtcNow.AddMinutes(15));
-        await _emailService.SendVerificationEmailAsync(dto.Email, verificationCode);
+        // Generate and send verification code via EmailService
+        await _emailService.SendVerificationEmailAsync(dto.Email);
 
         return (true, "Registration successful. Please check your email for verification code.");
     }
 
     public async Task<(bool Success, string Message)> VerifyEmailAsync(VerifyEmailDto dto)
     {
-        if (!_verificationCodes.TryGetValue(dto.Email, out var verificationData))
+        if (!_emailService.ValidateVerificationCode(dto.Email, dto.VerificationCode))
         {
-            return (false, "No verification code found for this email");
-        }
-
-        if (DateTime.UtcNow > verificationData.Expiry)
-        {
-            _verificationCodes.Remove(dto.Email);
-            return (false, "Verification code has expired");
-        }
-
-        if (verificationData.Code != dto.VerificationCode)
-        {
-            return (false, "Invalid verification code");
+            return (false, "Invalid or expired verification code");
         }
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
@@ -84,7 +71,6 @@ public class UserService
 
         user.IsVerified = true;
         await _context.SaveChangesAsync();
-        _verificationCodes.Remove(dto.Email);
 
         return (true, "Email verified successfully");
     }
@@ -97,7 +83,7 @@ public class UserService
 
     private string GenerateVerificationCode()
     {
-        return new Random().Next(100000, 999999).ToString();
+        return new Random().Next(1000, 9999).ToString();
     }
 
     public async Task<(bool Success, string Message, User? User)> LoginAsync(string emailOrPhone, string password)
@@ -119,9 +105,7 @@ public class UserService
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.Tel == emailOrPhone);
         if (user == null)
             return (false, "User not found");
-        var code = GenerateVerificationCode();
-        _resetCodes[user.Email] = (code, DateTime.UtcNow.AddMinutes(15));
-        await _emailService.SendVerificationEmailAsync(user.Email, code);
+        await _emailService.SendPasswordResetEmailAsync(user.Email);
         return (true, "Password reset code sent to your email.");
     }
 
@@ -130,18 +114,10 @@ public class UserService
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.Tel == emailOrPhone);
         if (user == null)
             return (false, "User not found");
-        if (!_resetCodes.TryGetValue(user.Email, out var resetData))
-            return (false, "No reset code found for this user");
-        if (DateTime.UtcNow > resetData.Expiry)
-        {
-            _resetCodes.Remove(user.Email);
-            return (false, "Reset code has expired");
-        }
-        if (resetData.Code != code)
-            return (false, "Invalid reset code");
+        if (!_emailService.ValidateResetCode(user.Email, code))
+            return (false, "Invalid or expired reset code");
         user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
         await _context.SaveChangesAsync();
-        _resetCodes.Remove(user.Email);
         return (true, "Password has been reset successfully.");
     }
 

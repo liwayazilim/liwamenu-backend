@@ -31,15 +31,6 @@ public class AuthController : ControllerBase
         return Ok(new { message });
     }
 
-    [HttpPost("verify-email")]
-    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
-    {
-        var (success, message) = await _userService.VerifyEmailAsync(dto);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
-    }
-
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginUserDto dto)
     {
@@ -66,24 +57,6 @@ public class AuthController : ControllerBase
         );
         var jwt = new JwtSecurityTokenHandler().WriteToken(token);
         return Ok(new { token = jwt });
-    }
-
-    [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
-    {
-        var (success, message) = await _userService.ForgotPasswordAsync(dto.EmailOrPhone);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
-    }
-
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
-    {
-        var (success, message) = await _userService.ResetPasswordAsync(dto.EmailOrPhone, dto.Code, dto.NewPassword);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
     }
 
     [Authorize]
