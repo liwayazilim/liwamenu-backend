@@ -71,4 +71,14 @@ public class AuthController : ControllerBase
             return BadRequest(new { message });
         return Ok(new { message });
     }
+
+    [HttpPost("verify-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
+    {
+        var (success, message) = await _userService.VerifyEmailAsync(dto);
+        if (!success)
+            return BadRequest(new { message });
+        return Ok(new { message });
+    }
 } 

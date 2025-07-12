@@ -10,8 +10,8 @@ public class UserReadDto
     public string Tel { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
-    public bool IsVerified { get; set; }
     public bool IsDealer { get; set; }
+    public bool EmailConfirmed { get; set; }
     public string? City { get; set; }
     public string? District { get; set; }
     public string? Neighbourhood { get; set; }

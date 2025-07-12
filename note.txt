@@ -1,0 +1,81 @@
+# QR_Menu Identity Roles & Access Control - Notes
+
+## User Types and Access
+
+### 1. Customer (Guest)
+- Can browse restaurant menus and place orders without signing in.
+- No account or authentication required.
+- Orders are linked to the restaurant, not to a user account.
+
+### 2. Restaurant Owner
+- Manages their own restaurant(s): menu, orders, themes, etc.
+- Can only access and manage their own data.
+- Identity user with the `Owner` role.
+- Actions protected by `[Authorize(Roles = "Owner")]`.
+- Data access filtered by the owner's user ID.
+
+### 3. Dealer
+- Can see/manage restaurants they have licensed.
+- Cannot access all users or sensitive admin features.
+- Identity user with the `Dealer` role.
+- Actions protected by `[Authorize(Roles = "Dealer")]`.
+- Data access filtered by the dealer's user ID.
+
+### 4. Admin
+- Full access to all data and settings.
+- Can manage users, restaurants, dealers, etc.
+- Identity user with the `Admin` role.
+- Actions protected by `[Authorize(Roles = "Admin")]`.
+
+---
+
+## Implementation with Identity
+
+- Use Identity roles: `Admin`, `Dealer`, `Owner` (seed these at startup).
+- Use `[Authorize(Roles = "...")]` to restrict access.
+- For actions that multiple roles can access, use comma-separated roles: `[Authorize(Roles = "Admin,Dealer,Owner")]`.
+- For Owners and Dealers, always filter data by their user ID.
+- Allow unauthenticated users to place orders (guest orders).
+- Only Owners, Dealers, and Admins need to register/sign in.
+- Admins can create other users (Dealers, Owners) via the admin panel.
+
+---
+
+## Example: Orders Controller
+
+```csharp
+// Anyone (including guests) can place an order
+[HttpPost("orders")]
+[AllowAnonymous]
+public async Task<IActionResult> PlaceOrder([FromBody] OrderDto dto) { ... }
+
+// Only owners can see their own orders
+[HttpGet("orders")]
+[Authorize(Roles = "Owner")]
+public async Task<IActionResult> GetMyOrders() { ... }
+
+// Only admin can see all orders
+[HttpGet("orders/all")]
+[Authorize(Roles = "Admin")]
+public async Task<IActionResult> GetAllOrders() { ... }
+```
+
+---
+
+## Summary Table
+
+| Role      | Needs Account? | Can Place Orders? | Can Manage Restaurants? | Can See All Data? | Can Manage Users? |
+|-----------|:--------------:|:-----------------:|:----------------------:|:-----------------:|:-----------------:|
+| Guest     | No             | Yes               | No                     | No                | No                |
+| Owner     | Yes            | Yes (their own)   | Yes (their own)        | No                | No                |
+| Dealer    | Yes            | No                | Yes (licensed)         | No                | No                |
+| Admin     | Yes            | No                | Yes (all)              | Yes               | Yes               |
+
+---
+
+## Next Steps
+- Seed roles at startup.
+- Protect endpoints with `[Authorize(Roles = ...)]`.
+- Allow guest orders without authentication.
+- Filter data by user role and ID.
+- Only allow Admins to manage users and see all data. 

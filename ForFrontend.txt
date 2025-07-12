@@ -1,0 +1,62 @@
+📢 Important Backend Update: Authentication & Email Flows
+
+We’ve made major improvements to our authentication and user management backend. Please review the following changes, as they will affect how the frontend interacts with the API:
+
+---
+
+1. Email Verification & Password Reset
+
+- Tokens:
+  - The backend now uses ASP.NET Core Identity’s built-in token system for email verification and password reset.
+  - The tokens sent in emails are now secure strings (not short codes). They may look long and contain special characters.
+
+- Frontend Actions:
+  - When a user receives a verification or reset email, the link will include `email` and `token` as query parameters.
+  - The frontend should extract these and send them to the backend’s verification or password reset endpoints.
+  - If you display a “code” input, users must paste the full token from the email (not just a 4-digit code).
+
+---
+
+2. Endpoints & Payloads
+
+- Verify Email:
+  - Endpoint: POST /api/users/verify-email (or as documented)
+  - Payload:
+    {
+      "email": "user@example.com",
+      "verificationCode": "the-long-token-from-email"
+    }
+
+- Reset Password:
+  - Endpoint: POST /api/users/reset-password (or as documented)
+  - Payload:
+    {
+      "emailOrPhone": "user@example.com",
+      "code": "the-long-token-from-email",
+      "newPassword": "newpassword123"
+    }
+
+---
+
+3. No More IsVerified
+
+- The backend now uses the EmailConfirmed property (from Identity) to track if a user’s email is verified.
+- If you were checking IsVerified or expecting a “not verified” error, now look for “User email is not verified” in error messages.
+
+---
+
+4. User Experience
+
+- The verification and reset tokens are now longer and more secure.
+- If you want to provide a “click to verify” or “click to reset” experience, use the link in the email and parse the query params.
+
+---
+
+5. Need Help?
+
+- Let us know if you need sample requests, test tokens, or have any questions about the new flow!
+
+---
+
+Summary:
+Please update the frontend to handle long tokens for email verification and password reset, and use the new endpoints and payloads. Let us know if you need anything! 

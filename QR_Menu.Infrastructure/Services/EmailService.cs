@@ -31,71 +31,25 @@ public class EmailService : IEmailService
         _fromEmail = _configuration["EmailSettings:FromEmail"] ?? throw new ArgumentNullException("FromEmail");
     }
 
-    public string GenerateCode()
+    public async Task SendVerificationEmailAsync(string email, string token)
     {
-        return new Random().Next(1000, 9999).ToString();
+        var subject = "Email Verification";
+        var intro = "Thank you for registering with QR_Menu! Please click the link below to verify your email.";
+        var verificationLink = $"https://your-frontend-url/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        string htmlBody = $@"<html><body><p>Hello,</p><p>{intro}</p><p><a href='{verificationLink}'>Verify your email</a></p><p>If you did not request this, you can ignore this email.</p><p>Best regards,<br/>The QR_Menu Team</p></body></html>";
+        await SendEmailAsync(email, subject, htmlBody);
     }
 
-    // --- Verification Email Logic ---
-    public async Task SendVerificationEmailAsync(string email, string? code = null)
+    public async Task SendPasswordResetEmailAsync(string email, string token)
     {
-        if (string.IsNullOrEmpty(code))
-            code = GenerateCode();
-        _verificationCodes[email] = (code, DateTime.UtcNow.AddMinutes(15));
-        await SendEmailAsync(email, code, "Email Verification", "Thank you for registering with QR_Menu!");
+        var subject = "Password Reset";
+        var intro = "You requested a password reset for QR_Menu. Please click the link below to reset your password.";
+        var resetLink = $"https://your-frontend-url/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        string htmlBody = $@"<html><body><p>Hello,</p><p>{intro}</p><p><a href='{resetLink}'>Reset your password</a></p><p>If you did not request this, you can ignore this email.</p><p>Best regards,<br/>The QR_Menu Team</p></body></html>";
+        await SendEmailAsync(email, subject, htmlBody);
     }
 
-    public bool TryGetVerificationCode(string email, out (string Code, DateTime Expiry) data)
-    {
-        return _verificationCodes.TryGetValue(email, out data);
-    }
-
-    public bool ValidateVerificationCode(string email, string code)
-    {
-        if (!_verificationCodes.TryGetValue(email, out var data))
-            return false;
-        if (DateTime.UtcNow > data.Expiry)
-        {
-            _verificationCodes.TryRemove(email, out _);
-            return false;
-        }
-        if (data.Code != code)
-            return false;
-        _verificationCodes.TryRemove(email, out _);
-        return true;
-    }
-
-    // --- Password Reset Email Logic ---
-    public async Task SendPasswordResetEmailAsync(string email, string? code = null)
-    {
-        if (string.IsNullOrEmpty(code))
-            code = GenerateCode();
-        _resetCodes[email] = (code, DateTime.UtcNow.AddMinutes(15));
-        await SendEmailAsync(email, code, "Password Reset", "You requested a password reset for QR_Menu.");
-    }
-
-    public bool TryGetResetCode(string email, out (string Code, DateTime Expiry) data)
-    {
-        return _resetCodes.TryGetValue(email, out data);
-    }
-
-    public bool ValidateResetCode(string email, string code)
-    {
-        if (!_resetCodes.TryGetValue(email, out var data))
-            return false;
-        if (DateTime.UtcNow > data.Expiry)
-        {
-            _resetCodes.TryRemove(email, out _);
-            return false;
-        }
-        if (data.Code != code)
-            return false;
-        _resetCodes.TryRemove(email, out _);
-        return true;
-    }
-
-    // --- Email Sending Helper ---
-    private async Task SendEmailAsync(string email, string code, string subject, string intro)
+    private async Task SendEmailAsync(string email, string subject, string htmlBody)
     {
         try
         {
@@ -111,15 +65,10 @@ public class EmailService : IEmailService
             {
                 From = fromAddress,
                 Subject = subject,
-                IsBodyHtml = true
+                IsBodyHtml = true,
+                Body = htmlBody
             };
             message.To.Add(email);
-            string plainTextBody = $"Hello,\n\nYour code is: {code}\n\n{intro}\n\nBest regards,\nThe QR_Menu Team";
-            string htmlBody = $@"<html><body><p>Hello,</p><p>Your code is: <b>{code}</b></p><p>{intro}</p><p>Best regards,<br/>The QR_Menu Team</p></body></html>";
-            var plainView = AlternateView.CreateAlternateViewFromString(plainTextBody, null, "text/plain");
-            var htmlView = AlternateView.CreateAlternateViewFromString(htmlBody, null, "text/html");
-            message.AlternateViews.Add(plainView);
-            message.AlternateViews.Add(htmlView);
             await client.SendMailAsync(message);
             _logger.LogInformation($"{subject} email sent to {email} successfully.");
         }

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Identity;
+
 namespace QR_Menu.Domain;
 
 public enum UserRole
@@ -8,19 +10,14 @@ public enum UserRole
     Customer
 }
 
-public class User
+public class User : IdentityUser<Guid>
 {
-    public Guid Id { get; set; }
     public Guid? DealerId { get; set; } // For users linked to a dealer
-    public string PasswordHash { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string FullName => $"{FirstName} {LastName}";
-    public string Tel { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
     public UserRole Role { get; set; }
     public bool IsActive { get; set; } = true;
-    public bool IsVerified { get; set; } = false;
     public bool IsDealer { get; set; } = false;
     public string? City { get; set; }
     public string? District { get; set; }

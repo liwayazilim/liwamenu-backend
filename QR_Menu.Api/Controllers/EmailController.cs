@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using QR_Menu.Domain.Common.Interfaces;
 using QR_Menu.Application.Users.DTOs;
+using QR_Menu.Application.Users;
 
 namespace QR_Menu.Api.Controllers;
 
@@ -9,48 +10,36 @@ namespace QR_Menu.Api.Controllers;
 [Route("api/[controller]")]
 public class EmailController : ControllerBase
 {
-    private readonly IEmailService _emailService;
+    private readonly UserService _userService;
 
-    public EmailController(IEmailService emailService)
+    public EmailController(UserService userService)
     {
-        _emailService = emailService;
+        _userService = userService;
     }
 
     [HttpPost("send-verification")]
     public async Task<IActionResult> SendVerification([FromBody] SendVerificationEmailRequest request)
     {
-        await _emailService.SendVerificationEmailAsync(request.Email);
+        // Registration now sends verification automatically, but you can re-send if needed
+        var user = await _userService.GetByEmailAsync(request.Email);
+        if (user == null)
+            return NotFound(new { message = "User not found." });
+        var token = await _userService.GenerateEmailConfirmationTokenAsync(user.Id);
+        await _userService.SendVerificationEmailAsync(user.Email, token);
         return Ok(new { message = "Verification email sent." });
-    }
-
-    [HttpPost("verify-email")]
-    public IActionResult VerifyEmail([FromBody] VerifyEmailDto dto)
-    {
-        var valid = _emailService.ValidateVerificationCode(dto.Email, dto.VerificationCode);
-        if (!valid)
-            return BadRequest(new { message = "Invalid or expired verification code" });
-        return Ok(new { message = "Email verified successfully" });
     }
 
     [HttpPost("send-password-reset")]
     public async Task<IActionResult> SendPasswordReset([FromBody] ForgotPasswordDto dto)
     {
-        await _emailService.SendPasswordResetEmailAsync(dto.EmailOrPhone);
-        return Ok(new { message = "Password reset code sent to your email." });
-    }
-
-    [HttpPost("verify-password-reset")]
-    public IActionResult VerifyPasswordReset([FromBody] ResetPasswordDto dto)
-    {
-        var valid = _emailService.ValidateResetCode(dto.EmailOrPhone, dto.Code);
-        if (!valid)
-            return BadRequest(new { message = "Invalid or expired reset code" });
-        return Ok(new { message = "Reset code is valid." });
+        var (success, message) = await _userService.ForgotPasswordAsync(dto.EmailOrPhone);
+        if (!success)
+            return BadRequest(new { message });
+        return Ok(new { message });
     }
 }
 
 public class SendVerificationEmailRequest
 {
     public string Email { get; set; } = string.Empty;
-    public string Code { get; set; } = string.Empty;
 } 

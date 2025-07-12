@@ -1,13 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using QR_Menu.Domain;
 
 namespace QR_Menu.Infrastructure;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<User> Users { get; set; }
+    // Remove DbSet<User> (handled by Identity)
     public DbSet<Restaurant> Restaurants { get; set; }
     public DbSet<License> Licenses { get; set; }
     public DbSet<Order> Orders { get; set; }
@@ -18,8 +20,6 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        
 
         // User-Dealer self reference
         modelBuilder.Entity<User>()

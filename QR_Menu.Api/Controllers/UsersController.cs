@@ -22,7 +22,7 @@ public class UsersController : ControllerBase
     // GET: api/users?search=...&page=1&pageSize=20
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Dealer")] // Only admin/dealer can get users
+
     public async Task<ActionResult<object>> GetAll([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var (users, total) = await _userService.GetAllAsync(search, page, pageSize);
