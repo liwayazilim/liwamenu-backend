@@ -43,7 +43,6 @@ public class UserService
             PhoneNumber = dto.Tel,
             City = dto.City,
             District = dto.District,
-            Neighbourhood = dto.Neighbourhood,
             Role = UserRole.Customer,
             IsActive = true
         };
@@ -110,7 +109,8 @@ public class UserService
 
     public async Task<(bool Success, string Message)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString());
+        // Use the same query method as GetByIdAsync for consistency
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null)
             return (false, "User not found");
         var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
@@ -185,25 +185,49 @@ public class UserService
 
     public async Task<bool> UpdateAsync(Guid id, UserUpdateDto dto)
     {
-        var user = await _userManager.FindByIdAsync(id.ToString());
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return false;
-        if (dto.FirstName != null) user.FirstName = dto.FirstName;
-        if (dto.LastName != null) user.LastName = dto.LastName;
-        if (dto.Email != null) user.Email = dto.Email;
-        if (dto.Tel != null) user.PhoneNumber = dto.Tel;
-        if (dto.Role != null && Enum.TryParse<UserRole>(dto.Role, out var role)) user.Role = role;
-        if (dto.IsActive.HasValue) user.IsActive = dto.IsActive.Value;
-        if (dto.IsDealer.HasValue) user.IsDealer = dto.IsDealer.Value;
-        if (dto.City != null) user.City = dto.City;
-        if (dto.District != null) user.District = dto.District;
-        if (dto.Neighbourhood != null) user.Neighbourhood = dto.Neighbourhood;
+        
+        // Ensure SecurityStamp is set (required by Identity)
+        if (string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString();
+        }
+        
+        if (dto.FirstName != null && dto.FirstName != "string") user.FirstName = dto.FirstName;
+        if (dto.LastName != null && dto.LastName != "string") user.LastName = dto.LastName;
+        if (dto.Tel != null && dto.Tel != "string") user.PhoneNumber = dto.Tel;
+        if (dto.Role != null && dto.Role != "string" && Enum.TryParse<UserRole>(dto.Role, out var role)) user.Role = role;
+        // Only update boolean values if they are explicitly provided (not default)
+        if (dto.IsActive.HasValue && dto.IsActive != user.IsActive) user.IsActive = dto.IsActive.Value;
+        if (dto.IsDealer.HasValue && dto.IsDealer != user.IsDealer) user.IsDealer = dto.IsDealer.Value;
+        if (dto.City != null && dto.City != "string") user.City = dto.City;
+        if (dto.District != null && dto.District != "string") user.District = dto.District;
+        if (dto.Neighbourhood != null && dto.Neighbourhood != "string") user.Neighbourhood = dto.Neighbourhood;
+        
+        // Handle email update carefully - ensure UserName is always set
+        if (dto.Email != null && !string.IsNullOrWhiteSpace(dto.Email) && dto.Email != "string")
+        {
+            user.Email = dto.Email;
+            user.UserName = dto.Email; 
+        }
+        else
+        {
+            
+            if (string.IsNullOrWhiteSpace(user.UserName))
+            {
+                user.UserName = user.Email ?? $"user_{user.Id}";
+            }
+        }
+        
         var result = await _userManager.UpdateAsync(user);
         return result.Succeeded;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        var user = await _userManager.FindByIdAsync(id.ToString());
+        
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return false;
         var result = await _userManager.DeleteAsync(user);
         return result.Succeeded;
@@ -218,7 +242,8 @@ public class UserService
     // Helper: Generate email confirmation token for a user by Id
     public async Task<string> GenerateEmailConfirmationTokenAsync(Guid userId)
     {
-        var user = await _userManager.FindByIdAsync(userId.ToString());
+        
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) throw new Exception("User not found");
         return await _userManager.GenerateEmailConfirmationTokenAsync(user);
     }

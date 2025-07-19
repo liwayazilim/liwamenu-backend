@@ -23,4 +23,7 @@
 Thumbs.db
 
 # Environment files
-.env 
+.env
+
+# Documentation files
+*.md

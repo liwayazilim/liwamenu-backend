@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using QR_Menu.Infrastructure;
@@ -11,9 +12,11 @@ using QR_Menu.Infrastructure;
 namespace QR_Menu.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250719100118_FixNullSecurityStamps")]
+    partial class FixNullSecurityStamps
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -341,9 +344,6 @@ namespace QR_Menu.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid?>("DealerId")
                         .HasColumnType("uuid");
 
@@ -430,9 +430,6 @@ namespace QR_Menu.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid?>("DealerId")
                         .HasColumnType("uuid");
 
@@ -455,9 +452,6 @@ namespace QR_Menu.Infrastructure.Migrations
 
                     b.Property<bool>("IsDealer")
                         .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -503,8 +497,6 @@ namespace QR_Menu.Infrastructure.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DealerId");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
@@ -675,15 +667,6 @@ namespace QR_Menu.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("QR_Menu.Domain.User", b =>
-                {
-                    b.HasOne("QR_Menu.Domain.User", "Dealer")
-                        .WithMany("ManagedUsers")
-                        .HasForeignKey("DealerId");
-
-                    b.Navigation("Dealer");
-                });
-
             modelBuilder.Entity("QR_Menu.Domain.Category", b =>
                 {
                     b.Navigation("Products");
@@ -704,8 +687,6 @@ namespace QR_Menu.Infrastructure.Migrations
             modelBuilder.Entity("QR_Menu.Domain.User", b =>
                 {
                     b.Navigation("Licenses");
-
-                    b.Navigation("ManagedUsers");
 
                     b.Navigation("Restaurants");
                 });

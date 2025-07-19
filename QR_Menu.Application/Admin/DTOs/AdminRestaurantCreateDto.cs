@@ -1,11 +1,9 @@
-namespace QR_Menu.Domain;
+namespace QR_Menu.Application.Admin.DTOs;
 
-public class Restaurant
+public class AdminRestaurantCreateDto
 {
-    public Guid Id { get; set; }
     public Guid UserId { get; set; }
     public Guid? DealerId { get; set; }
-    public Guid? LicenseId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Telefon { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;
@@ -16,7 +14,6 @@ public class Restaurant
     public double Lng { get; set; }
     public bool IsActive { get; set; } = true;
     public string? WorkingHours { get; set; }
-    public ICollection<PaymentMethod>? PaymentMethods { get; set; }
     public double? MinDistance { get; set; }
     public string? GoogleAnalytics { get; set; }
     public string? DefaultLang { get; set; }
@@ -25,9 +22,4 @@ public class Restaurant
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; } = false;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public User? User { get; set; }
-    public License? License { get; set; }
-    public ICollection<Category>? Categories { get; set; }
-    public ICollection<Product>? Products { get; set; }
 } 
