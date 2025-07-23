@@ -4,8 +4,7 @@ namespace QR_Menu.Domain.Common;
 public static class Roles
 {
     // Core System Roles
-    public const string SuperAdmin = "SuperAdmin";
-    public const string Manager = "Manager";
+    public const string Manager = "Manager"; // Now the super admin role
     public const string Owner = "Owner";
     public const string Dealer = "Dealer";
     public const string Customer = "Customer";
@@ -18,8 +17,7 @@ public static class Roles
     {
         return role switch
         {
-            SuperAdmin => GetSuperAdminPermissions(),
-            Manager => GetManagerPermissions(),
+            Manager => GetManagerPermissions(), // Manager now has all permissions
             Owner => GetOwnerPermissions(),
             Dealer => GetDealerPermissions(),
             Customer => GetCustomerPermissions(),
@@ -28,89 +26,11 @@ public static class Roles
     }
 
     /// <summary>
-    /// Super Admin: Full system access - should be very limited
-    /// </summary>
-    private static string[] GetSuperAdminPermissions()
-    {
-        return Permissions.GetAllPermissions(); // All permissions
-    }
-
-    /// <summary>
-    /// Manager: Can manage users, restaurants, and licenses but no system admin
+    /// Manager: Full system access - Super Admin role
     /// </summary>
     private static string[] GetManagerPermissions()
     {
-        return new[]
-        {
-            // User Management
-            Permissions.Users.View,
-            Permissions.Users.ViewAll,
-            Permissions.Users.ViewDetails,
-            Permissions.Users.Create,
-            Permissions.Users.Update,
-            Permissions.Users.Delete,
-            Permissions.Users.Export,
-            Permissions.Users.BulkOperations,
-
-            // Restaurant Management
-            Permissions.Restaurants.View,
-            Permissions.Restaurants.ViewAll,
-            Permissions.Restaurants.Create,
-            Permissions.Restaurants.Update,
-            Permissions.Restaurants.Delete,
-            Permissions.Restaurants.ManageOwnership,
-            Permissions.Restaurants.ViewAnalytics,
-            Permissions.Restaurants.Export,
-            Permissions.Restaurants.BulkOperations,
-
-            // License Management
-            Permissions.Licenses.View,
-            Permissions.Licenses.ViewAll,
-            Permissions.Licenses.Create,
-            Permissions.Licenses.Update,
-            Permissions.Licenses.Delete,
-            Permissions.Licenses.Extend,
-            Permissions.Licenses.Activate,
-            Permissions.Licenses.Deactivate,
-            Permissions.Licenses.ViewFinancials,
-            Permissions.Licenses.ManagePricing,
-            Permissions.Licenses.Export,
-            Permissions.Licenses.BulkOperations,
-
-            // Dashboard Access
-            Permissions.Dashboard.ViewBasic,
-            Permissions.Dashboard.ViewAdvanced,
-            Permissions.Dashboard.ViewFinancials,
-            Permissions.Dashboard.ViewUserStats,
-            Permissions.Dashboard.ViewRestaurantStats,
-            Permissions.Dashboard.ViewLicenseStats,
-            Permissions.Dashboard.Export,
-
-            // Order Management
-            Permissions.Orders.View,
-            Permissions.Orders.ViewAll,
-            Permissions.Orders.Update,
-            Permissions.Orders.ManageStatus,
-            Permissions.Orders.ViewFinancials,
-            Permissions.Orders.Export,
-
-            // Menu Management
-            Permissions.Menu.View,
-            Permissions.Menu.ViewAll,
-            Permissions.Menu.Create,
-            Permissions.Menu.Update,
-            Permissions.Menu.Delete,
-            Permissions.Menu.ManagePricing,
-            Permissions.Menu.Export,
-            Permissions.Menu.BulkOperations,
-
-            // Financial Access
-            Permissions.Finance.ViewRevenue,
-            Permissions.Finance.ViewAllFinancials,
-            Permissions.Finance.ManagePricing,
-            Permissions.Finance.ViewReports,
-            Permissions.Finance.Export
-        };
+        return Permissions.GetAllPermissions(); // All permissions - Manager is now Super Admin
     }
 
     /// <summary>
@@ -217,7 +137,6 @@ public static class Roles
     {
         return new[]
         {
-            SuperAdmin,
             Manager,
             Owner,
             Dealer,
@@ -241,11 +160,10 @@ public static class Roles
     {
         return role switch
         {
-            SuperAdmin => 0,
-            Manager => 1,
-            Dealer => 2,
-            Owner => 3,
-            Customer => 4,
+            Manager => 0, // Manager is now Super Admin
+            Dealer => 1,
+            Owner => 2,
+            Customer => 3,
             _ => 999
         };
     }

@@ -29,34 +29,46 @@ public class AdminService
     #region User Management
 
     public async Task<(List<AdminUserDto> Users, int TotalCount)> GetUsersAsync(
-        string? search = null,
+        string? searchKey = null,
+        bool? dealer = null,
         string? role = null,
-        bool? isActive = null,
+        string? city = null,
+        bool? active = null,
         bool? emailConfirmed = null,
-        int page = 1,
-        int pageSize = 20)
+        int pageNumber = 1,
+        int pageSize = 10)
     {
         var query = _userManager.Users.AsNoTracking();
 
         // now i filter them when needed
-        if (!string.IsNullOrWhiteSpace(search))
+        if (!string.IsNullOrWhiteSpace(searchKey))
         {
             query = query.Where(u => 
-                u.FirstName.Contains(search) ||
-                u.LastName.Contains(search) ||
-                u.Email.Contains(search) ||
-                (u.PhoneNumber != null && u.PhoneNumber.Contains(search))
+                u.FirstName.Contains(searchKey) ||
+                u.LastName.Contains(searchKey) ||
+                u.Email.Contains(searchKey) ||
+                (u.PhoneNumber != null && u.PhoneNumber.Contains(searchKey))
             );    
         }
 
-        if (!string.IsNullOrWhiteSpace(role) && Enum.TryParse<UserRole>(role, out var userRole))
+       if (!string.IsNullOrWhiteSpace(role) && Enum.TryParse<UserRole>(role, out var userRole))
         {
             query = query.Where(u => u.Role == userRole);
+        } 
+
+        if (dealer.HasValue)
+        {
+            query = query.Where(u => u.IsDealer == dealer.Value);
         }
 
-        if (isActive.HasValue)
+        if (!string.IsNullOrWhiteSpace(city))
         {
-            query = query.Where(u => u.IsActive == isActive.Value);
+            query = query.Where(u => u.City.Contains(city));
+        }
+
+        if (active.HasValue)
+        {
+            query = query.Where(u => u.IsActive == active.Value);
         }
 
         if (emailConfirmed.HasValue)
@@ -69,7 +81,7 @@ public class AdminService
         var users = await query
             .OrderBy(u => u.FirstName)
             .ThenBy(u => u.LastName)
-            .Skip((page - 1) * pageSize)
+            .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(u => new AdminUserDto 
             {
@@ -86,6 +98,7 @@ public class AdminService
                 District = u.District,
                 Neighbourhood = u.Neighbourhood,
                 DealerId = u.DealerId,
+                Note = u.Note,
                 AccessFailedCount = u.AccessFailedCount,
                 LockoutEnd = u.LockoutEnd,
                 RestaurantsCount = u.Restaurants != null ? u.Restaurants.Count : 0,
@@ -107,8 +120,8 @@ public class AdminService
 
             foreach (var user in users.Where(u => u.DealerId.HasValue))
             {
-                var dealer = dealers.FirstOrDefault(d => d.Id == user.DealerId);
-                user.DealerName = dealer?.Name;
+                var dealerr = dealers.FirstOrDefault(d => d.Id == user.DealerId);
+                user.DealerName = dealerr?.Name;
             }    
         }
 
@@ -142,6 +155,7 @@ public class AdminService
             District = user.District,
             Neighbourhood = user.Neighbourhood,
             DealerId = user.DealerId,
+            Note = user.Note,
             AccessFailedCount = user.AccessFailedCount,
             LockoutEnd = user.LockoutEnd,
             RestaurantsCount = user.Restaurants?.Count ?? 0,
@@ -192,51 +206,71 @@ public class AdminService
     #region Restaurant Management
 
     public async Task<(List<AdminRestaurantDto> Restaurants, int TotalCount)> GetRestaurantsAsync(
-        string? search = null,
+        string? searchKey = null,
         string? city = null,
-        bool? isActive = null,
+        bool? active = null,
         bool? hasLicense = null,
         Guid? ownerId = null,
         Guid? dealerId = null,
-        int page = 1,
+        string? district = null,
+        string? neighbourhood = null,
+        int pageNumber = 1,
         int pageSize = 20)
     {
         var query = _context.Restaurants
+            .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.License)
-            .ThenInclude(l => l.User)
             .Include(r => r.Categories)
+            .ThenInclude(c => c.Products)
             .Include(r => r.Products)
-            .AsNoTracking();
+            .Include(r => r.User!.Dealer)
+            .AsQueryable();
 
-        // now i filter them when needed
-        if (!string.IsNullOrWhiteSpace(search))
+        // Apply filters
+        if (!string.IsNullOrWhiteSpace(searchKey))
         {
-            query = query.Where(r => r.Name.Contains(search) ||
-                r.City.Contains(search) ||
-                r.Address.Contains(search) ||
-                r.User.FirstName.Contains(search) ||
-                r.User.LastName.Contains(search) ||
-                r.User.Email.Contains(search) 
+            query = query.Where(r => 
+                r.Name.Contains(searchKey) ||
+                r.City.Contains(searchKey) ||
+                r.District.Contains(searchKey) ||
+                (r.Neighbourhood != null && r.Neighbourhood.Contains(searchKey)) ||
+                r.User!.FirstName.Contains(searchKey) ||
+                r.User!.LastName.Contains(searchKey) ||
+                r.User!.Email.Contains(searchKey)
             );
         }
 
         if (!string.IsNullOrWhiteSpace(city))
         {
-            query = query.Where(r => r.City == city);
+            query = query.Where(r => r.City.Contains(city));
         }
 
-        if (isActive.HasValue)
+        if (!string.IsNullOrWhiteSpace(district))
         {
-            query = query.Where(r => r.IsActive == isActive.Value);
+            query = query.Where(r => r.District.Contains(district));
+        }
+
+        if (!string.IsNullOrWhiteSpace(neighbourhood))
+        {
+            query = query.Where(r => r.Neighbourhood != null && r.Neighbourhood.Contains(neighbourhood));
+        }
+
+        if (active.HasValue)
+        {
+            query = query.Where(r => r.IsActive == active.Value);
         }
 
         if (hasLicense.HasValue)
         {
             if (hasLicense.Value)
-                query = query.Where(r => r.License != null);
+            {
+                query = query.Where(r => r.License != null && r.License.IsActive);
+            }
             else
-                query = query.Where(r => r.License == null);
+            {
+                query = query.Where(r => r.License == null || !r.License.IsActive);
+            }
         }
 
         if (ownerId.HasValue)
@@ -251,8 +285,9 @@ public class AdminService
 
         var total = await query.CountAsync();
 
-        var restaurants = await query.OrderBy(r => r.Name)
-            .Skip((page - 1) * pageSize)
+        var restaurants = await query
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(r => new AdminRestaurantDto
             {
@@ -275,30 +310,191 @@ public class AdminService
                 Slogan1 = r.Slogan1,
                 Slogan2 = r.Slogan2,
                 Hide = r.Hide,
+                CreatedAt = r.CreatedAt,
+
+                // Owner information
                 UserId = r.UserId,
-                OwnerName = r.User.FirstName + " " + r.User.LastName,
-                OwnerEmail = r.User.Email,
-                OwnerPhone = r.User.PhoneNumber,
-                OwnerRole = r.User.Role.ToString(),
-                OwnerIsActive = r.User.IsActive,
+                OwnerName = r.User!.FullName,
+                OwnerEmail = r.User!.Email,
+                OwnerPhone = r.User!.PhoneNumber,
+                OwnerRole = r.User!.Role.ToString(),
+                OwnerIsActive = r.User!.IsActive,
+
+                // Dealer information
                 DealerId = r.DealerId,
-                DealerName = r.License != null ? r.License.User.FirstName + " " + r.License.User.LastName : null,
-                DealerEmail = r.License != null ? r.License.User.Email : null,
+                DealerName = r.User!.Dealer != null ? r.User!.Dealer.FullName : null,
+                DealerEmail = r.User!.Dealer != null ? r.User!.Dealer.Email : null,
+
+                // License information
                 LicenseId = r.LicenseId,
                 HasLicense = r.License != null,
                 LicenseStart = r.License != null ? r.License.StartDateTime : null,
                 LicenseEnd = r.License != null ? r.License.EndDateTime : null,
                 LicenseIsActive = r.License != null ? r.License.IsActive : false,
-                LicenseIsExpired = r.License != null ? r.License.EndDateTime <= DateTime.UtcNow : false,
+                LicenseIsExpired = r.License != null ? DateTime.UtcNow > r.License.EndDateTime : false,
                 LicenseUserPrice = r.License != null ? r.License.UserPrice : null,
                 LicenseDealerPrice = r.License != null ? r.License.DealerPrice : null,
+
+                // Statistics
                 CategoriesCount = r.Categories != null ? r.Categories.Count : 0,
                 ProductsCount = r.Products != null ? r.Products.Count : 0,
-                ActiveProductsCount = r.Products != null ? r.Products.Count(p => p.IsActive) : 0
-            }).ToListAsync();
+                ActiveProductsCount = r.Products != null ? r.Products.Count(p => p.IsActive) : 0,
+                OrdersCount = 0, // TODO: Add orders count when Order entity is implemented
+                PendingOrdersCount = 0,
+                CompletedOrdersCount = 0,
+                TotalRevenue = 0, // TODO: Add revenue calculation when Order entity is implemented
+                LastOrderDate = null
+            })
+            .ToListAsync();
 
         return (restaurants, total);
-    }    
+    }
+
+    public async Task<(List<AdminRestaurantDto> Restaurants, int TotalCount)> GetRestaurantsByUserIdAsync(
+        Guid userId,
+        int pageNumber = 1, 
+        int pageSize = 20,
+        string? searchKey = null,
+        string? city = null,
+        string? district = null,
+        string? neighbourhood = null,
+        bool? active = null)
+        //bool? hasLicense = null,
+        //bool? inPersonOrder = null,
+        //bool? onlineOrder = null,
+    {
+        var query = _context.Restaurants
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.License)
+            .Include(r => r.Categories)
+            .ThenInclude(c => c.Products)
+            .Include(r => r.Products)
+            .Include(r => r.User!.Dealer)
+            .Where(r => r.UserId == userId) // Filter by specific user
+            .AsQueryable();
+
+        // Apply filters
+        if (!string.IsNullOrWhiteSpace(searchKey))
+        {
+            query = query.Where(r => 
+                r.Name.Contains(searchKey) ||
+                r.City.Contains(searchKey) ||
+                r.District.Contains(searchKey) ||
+                (r.Neighbourhood != null && r.Neighbourhood.Contains(searchKey)) ||
+                r.Telefon.Contains(searchKey)
+            );
+        }
+
+        if (!string.IsNullOrWhiteSpace(city))
+        {
+            query = query.Where(r => r.City.Contains(city));
+        }
+
+        if (!string.IsNullOrWhiteSpace(district))
+        {
+            query = query.Where(r => r.District.Contains(district));
+        }
+
+        if (!string.IsNullOrWhiteSpace(neighbourhood))
+        {
+            query = query.Where(r => r.Neighbourhood != null && r.Neighbourhood.Contains(neighbourhood));
+        }
+
+        if (active.HasValue)
+        {
+            query = query.Where(r => r.IsActive == active.Value);
+        }
+
+       /*
+        if (hasLicense.HasValue)
+        {
+            if (hasLicense.Value)
+            {
+                query = query.Where(r => r.License != null && r.License.IsActive);
+            }
+            else
+            {
+                query = query.Where(r => r.License == null || !r.License.IsActive);
+            }
+        }
+
+        if (inPersonOrder.HasValue)
+        {
+            query = query.Where(r => r.InPersonOrder == inPersonOrder.Value);
+        }
+
+        if (onlineOrder.HasValue)
+        {
+            query = query.Where(r => r.OnlineOrder == onlineOrder.Value);
+        }*/
+
+        var totalCount = await query.CountAsync();
+
+        var restaurants = await query
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new AdminRestaurantDto
+            {
+                Id = r.Id,
+                Name = r.Name,
+                Telefon = r.Telefon,
+                City = r.City,
+                District = r.District,
+                Neighbourhood = r.Neighbourhood,
+                Address = r.Address,
+                Lat = r.Lat,
+                Lng = r.Lng,
+                IsActive = r.IsActive,
+                WorkingHours = r.WorkingHours,
+                MinDistance = r.MinDistance,
+                GoogleAnalytics = r.GoogleAnalytics,
+                DefaultLang = r.DefaultLang,
+                InPersonOrder = r.InPersonOrder,
+                OnlineOrder = r.OnlineOrder,
+                Slogan1 = r.Slogan1,
+                Slogan2 = r.Slogan2,
+                Hide = r.Hide,
+                CreatedAt = r.CreatedAt,
+
+                // Owner information
+                UserId = r.UserId,
+                OwnerName = r.User!.FullName,
+                OwnerEmail = r.User!.Email,
+                OwnerPhone = r.User!.PhoneNumber,
+                OwnerRole = r.User!.Role.ToString(),
+                OwnerIsActive = r.User!.IsActive,
+
+                // Dealer information
+                DealerId = r.DealerId,
+                DealerName = r.User!.Dealer != null ? r.User!.Dealer.FullName : null,
+                DealerEmail = r.User!.Dealer != null ? r.User!.Dealer.Email : null,
+
+                // License information
+                LicenseId = r.LicenseId,
+                HasLicense = r.License != null,
+                LicenseStart = r.License != null ? r.License.StartDateTime : null,
+                LicenseEnd = r.License != null ? r.License.EndDateTime : null,
+                LicenseIsActive = r.License != null ? r.License.IsActive : false,
+                LicenseIsExpired = r.License != null ? DateTime.UtcNow > r.License.EndDateTime : false,
+                LicenseUserPrice = r.License != null ? r.License.UserPrice : null,
+                LicenseDealerPrice = r.License != null ? r.License.DealerPrice : null,
+
+                // Statistics
+                CategoriesCount = r.Categories != null ? r.Categories.Count : 0,
+                ProductsCount = r.Products != null ? r.Products.Count : 0,
+                ActiveProductsCount = r.Products != null ? r.Products.Count(p => p.IsActive) : 0,
+                OrdersCount = 0, // TODO: Add orders count when Order entity is implemented
+                PendingOrdersCount = 0,
+                CompletedOrdersCount = 0,
+                TotalRevenue = 0, // TODO: Add revenue calculation when Order entity is implemented
+                LastOrderDate = null
+            })
+            .ToListAsync();
+
+        return (restaurants, totalCount);
+    }
 
     public async Task<AdminRestaurantDetailDto?> GetRestaurantDetailAsync(Guid restaurantId)
     {
@@ -453,21 +649,21 @@ public class AdminService
                 Owners = users.Count(u => u.Role == UserRole.Owner),
                 Dealers = users.Count(u => u.Role == UserRole.Dealer),
                 Customers = users.Count(u => u.Role == UserRole.Customer),
-                Admins = users.Count(u => u.Role == UserRole.Admin)
+                Managers = users.Count(u => u.Role == UserRole.Manager)
             },
             Active = new
             {
                 Owners = users.Count(u => u.Role == UserRole.Owner && u.IsActive),
                 Dealers = users.Count(u => u.Role == UserRole.Dealer && u.IsActive),
                 Customers = users.Count(u => u.Role == UserRole.Customer && u.IsActive),
-                Admins = users.Count(u => u.Role == UserRole.Admin && u.IsActive)
+                Managers = users.Count(u => u.Role == UserRole.Manager && u.IsActive)
             },
             NewThisMonth = new
             {
                 Owners = users.Count(u => u.Role == UserRole.Owner && u.CreatedAt >= thisMonth),
                 Dealers = users.Count(u => u.Role == UserRole.Dealer && u.CreatedAt >= thisMonth),
                 Customers = users.Count(u => u.Role == UserRole.Customer && u.CreatedAt >= thisMonth),
-                Admins = users.Count(u => u.Role == UserRole.Admin && u.CreatedAt >= thisMonth)
+                Managers = users.Count(u => u.Role == UserRole.Manager && u.CreatedAt >= thisMonth)
             }
         };
     }

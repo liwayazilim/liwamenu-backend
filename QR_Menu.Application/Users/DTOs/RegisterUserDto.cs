@@ -18,9 +18,7 @@ public class RegisterUserDto
     [Required]
     public string LastName { get; set; } = string.Empty;
 
-    [Required]
-    [Phone]
-    public string Tel { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
 
     public string? City { get; set; }
     public string? District { get; set; }

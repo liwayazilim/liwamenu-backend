@@ -17,24 +17,32 @@ public class RestaurantService
         _mapper = mapper;
     }
 
-    public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? search = null, string? city = null, bool? isActive = null, int page = 1, int pageSize = 20)
+    public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? searchKey = null, string? city = null, bool? active = null, int pageNumber = 1, int pageSize = 10, string? district = null, string? neighbourhood = null)
     {
         var query = _context.Restaurants.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(search))
+        if (!string.IsNullOrWhiteSpace(searchKey))
         {
-            query = query.Where(r => r.Name.Contains(search) || r.Address.Contains(search) || r.City.Contains(search));
+            query = query.Where(r => r.Name.Contains(searchKey) || r.Address.Contains(searchKey) || r.City.Contains(searchKey));
         }
         if (!string.IsNullOrWhiteSpace(city))
         {
             query = query.Where(r => r.City == city);
         }
-        if (isActive.HasValue)
+        if (active.HasValue)
         {
-            query = query.Where(r => r.IsActive == isActive.Value);
+            query = query.Where(r => r.IsActive == active.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(district))
+        {
+            query = query.Where(r => r.District == district);
+        }
+        if (!string.IsNullOrWhiteSpace(neighbourhood))
+        {
+            query = query.Where(r => r.Neighbourhood == neighbourhood);
         }
         var total = await query.CountAsync();
         var restaurants = await query.OrderBy(r => r.Name)
-            .Skip((page - 1) * pageSize)
+            .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
         return (_mapper.Map<List<RestaurantReadDto>>(restaurants), total);

@@ -7,7 +7,7 @@ public class UserReadDto
     public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    public string Tel { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public bool IsDealer { get; set; }
@@ -15,4 +15,6 @@ public class UserReadDto
     public string? City { get; set; }
     public string? District { get; set; }
     public string? Neighbourhood { get; set; }
+    public Guid? DealerId { get; set; }
+    public string? Note { get; set; }
 } 

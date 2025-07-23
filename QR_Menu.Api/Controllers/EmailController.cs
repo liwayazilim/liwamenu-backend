@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using QR_Menu.Domain.Common.Interfaces;
-using QR_Menu.Application.Users.DTOs;
 using QR_Menu.Application.Users;
+using QR_Menu.Application.Users.DTOs;
+using QR_Menu.Application.Common;
 
 namespace QR_Menu.Api.Controllers;
 
@@ -18,24 +17,19 @@ public class EmailController : ControllerBase
     }
 
     [HttpPost("send-verification")]
-    public async Task<IActionResult> SendVerification([FromBody] SendVerificationEmailRequest request)
+    public async Task<ActionResult<ResponsBase>> SendVerification([FromBody] SendVerificationEmailRequest request)
     {
-        // Registration now sends verification automatically, but you can re-send if needed
-        var user = await _userService.GetByEmailAsync(request.Email);
-        if (user == null)
-            return NotFound(new { message = "User not found." });
-        var token = await _userService.GenerateEmailConfirmationTokenAsync(user.Id);
-        await _userService.SendVerificationEmailAsync(user.Email, token);
-        return Ok(new { message = "Verification email sent." });
+        var (success, message) = await _userService.ForgotPasswordAsync(request.Email);
+        if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
+        return Ok(ResponsBase.Create("Doğrulama e-postası gönderildi", "Verification email sent", "200"));
     }
 
     [HttpPost("send-password-reset")]
-    public async Task<IActionResult> SendPasswordReset([FromBody] ForgotPasswordDto dto)
+    public async Task<ActionResult<ResponsBase>> SendPasswordReset([FromBody] ForgotPasswordDto dto)
     {
         var (success, message) = await _userService.ForgotPasswordAsync(dto.EmailOrPhone);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
+        if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
+        return Ok(ResponsBase.Create("Şifre sıfırlama e-postası gönderildi", "Password reset email sent", "200"));
     }
 }
 

@@ -58,7 +58,7 @@ public class DatabaseSeeder
     {
         _logger.LogInformation("Seeding initial users...");
 
-        // Seed Super Admin
+        // Seed Manager (Super Admin)
         await SeedUserAsync(userManager, new User
         {
             Id = Guid.NewGuid(),
@@ -66,25 +66,11 @@ public class DatabaseSeeder
             Email = "abouadmin@qrmenu.com",
             FirstName = "Abou",
             LastName = "Admin",
-            Role = UserRole.Admin, // Keep legacy property
+            Role = UserRole.Manager, // Updated to Manager
             IsActive = true,
             EmailConfirmed = true,
             IsDealer = false
-        }, "abou1234", Roles.SuperAdmin);
-
-        // Seed Manager
-        await SeedUserAsync(userManager, new User
-        {
-            Id = Guid.NewGuid(),
-            UserName = "manager@qrmenu.com",
-            Email = "manager@qrmenu.com",
-            FirstName = "System",
-            LastName = "Manager",
-            Role = UserRole.Admin, // Keep legacy property
-            IsActive = true,
-            EmailConfirmed = true,
-            IsDealer = false
-        }, "Manager123!", Roles.Manager);
+        }, "abou1234", Roles.Manager);
 
         // Seed Demo Owner
         await SeedUserAsync(userManager, new User
@@ -94,7 +80,7 @@ public class DatabaseSeeder
             Email = "owner@qrmenu.com",
             FirstName = "Demo",
             LastName = "Owner",
-            Role = UserRole.Owner, // Keep legacy property
+            Role = UserRole.Owner,
             IsActive = true,
             EmailConfirmed = true,
             IsDealer = false,
@@ -110,7 +96,7 @@ public class DatabaseSeeder
             Email = "dealer@qrmenu.com",
             FirstName = "Demo",
             LastName = "Dealer",
-            Role = UserRole.Dealer, // Keep legacy property
+            Role = UserRole.Dealer,
             IsActive = true,
             EmailConfirmed = true,
             IsDealer = true,

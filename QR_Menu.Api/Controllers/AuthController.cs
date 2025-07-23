@@ -8,7 +8,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using QR_Menu.Domain;
-using System.Net;
+using QR_Menu.Application.Common;
 
 namespace QR_Menu.Api.Controllers;
 
@@ -28,12 +28,11 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Register([FromBody] RegisterUserDto dto)
+    public async Task<ActionResult<ResponsBase>> Register([FromBody] RegisterUserDto dto)
     {
         var (success, message) = await _userService.RegisterAsync(dto);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
+        if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
+        return Ok(ResponsBase.Create("Kayıt başarılı. Lütfen e-postanızı kontrol ederek hesabınızı doğrulayın.", "Registration successful. Please check your email to verify your account.", "200"));
     }
 
     [HttpPost("login")]
@@ -105,34 +104,75 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+    public async Task<ActionResult<ResponsBase>> ChangePassword([FromBody] ChangePasswordDto dto)
     {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
-            return Unauthorized(new { message = "Invalid user." });
+            return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
+
         var (success, message) = await _userService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
+        if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
+        return Ok(ResponsBase.Create("Şifre başarıyla değiştirildi", "Password changed successfully", "200"));
     }
 
     [HttpPost("verify-email")]
     [AllowAnonymous]
-    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
+    public async Task<ActionResult<ResponsBase>> VerifyEmail([FromBody] VerifyEmailDto dto)
     {
         var (success, message) = await _userService.VerifyEmailAsync(dto);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
+        if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
+        return Ok(ResponsBase.Create("E-posta başarıyla doğrulandı", "Email verified successfully", "200"));
     }
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    public async Task<ActionResult<ResponsBase>> ResetPassword([FromBody] ResetPasswordDto dto)
     {
         var (success, message) = await _userService.ResetPasswordAsync(dto.EmailOrPhone, dto.Code, dto.NewPassword);
-        if (!success)
-            return BadRequest(new { message });
-        return Ok(new { message });
+        if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
+        return Ok(ResponsBase.Create("Şifre başarıyla sıfırlandı", "Password reset successfully", "200"));
+    }
+
+    private string GenerateJwtToken(User user)
+    {
+        // Get user manager for role information
+        var userManager = HttpContext.RequestServices.GetRequiredService<UserManager<User>>();
+        var identityUser = userManager.FindByIdAsync(user.Id.ToString()).Result;
+        var userRoles = userManager.GetRolesAsync(identityUser!).Result;
+
+        // Generate JWT with comprehensive claims
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Name, user.FullName),
+            new Claim("firstName", user.FirstName),
+            new Claim("lastName", user.LastName),
+            new Claim("isActive", user.IsActive.ToString().ToLower()),
+            new Claim("emailConfirmed", user.EmailConfirmed.ToString().ToLower()),
+            new Claim("isDealer", user.IsDealer.ToString().ToLower())
+        };
+
+        // Add all user roles to claims
+        foreach (var role in userRoles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        // Add legacy role for backward compatibility
+        claims.Add(new Claim("legacyRole", user.Role.ToString()));
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(8), // Shorter token lifetime for better security
+            signingCredentials: creds
+        );
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 } 

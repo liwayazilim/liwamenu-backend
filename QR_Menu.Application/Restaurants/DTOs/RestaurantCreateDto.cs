@@ -3,7 +3,7 @@ namespace QR_Menu.Application.Restaurants.DTOs;
 public class RestaurantCreateDto
 {
     public Guid UserId { get; set; }
-    public Guid? DealerId { get; set; }
+    public Guid? DealerId { get; set; } = null;
     public string Name { get; set; } = string.Empty;
     public string Telefon { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;

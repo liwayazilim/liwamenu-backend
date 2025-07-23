@@ -4,7 +4,7 @@ namespace QR_Menu.Domain;
 
 public enum UserRole
 {
-    Admin,
+    Manager, // Now the super admin role
     Dealer,
     Owner,
     Customer
@@ -22,6 +22,9 @@ public class User : IdentityUser<Guid>
     public string? City { get; set; }
     public string? District { get; set; }
     public string? Neighbourhood { get; set; }
+    public string? Note { get; set; }
+    public bool SendSMSNotify { get; set; } = true;
+    public bool SendEmailNotify { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
     public ICollection<Restaurant>? Restaurants { get; set; }

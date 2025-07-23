@@ -17,6 +17,7 @@ public class AdminUserDto
     public string? Neighbourhood { get; set; }
     public Guid? DealerId { get; set; }
     public string? DealerName { get; set; }
+    public string? Note { get; set; }
 
     // Statistics
     public int RestaurantsCount { get; set; }

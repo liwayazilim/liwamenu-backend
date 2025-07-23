@@ -21,6 +21,7 @@ public class AdminRestaurantDto
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; }
+    public DateTime CreatedAt { get; set; }
     
     // Owner Information
     public Guid UserId { get; set; }
