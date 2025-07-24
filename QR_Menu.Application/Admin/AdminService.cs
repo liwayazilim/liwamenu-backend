@@ -243,17 +243,17 @@ public class AdminService
 
         if (!string.IsNullOrWhiteSpace(city))
         {
-            query = query.Where(r => r.City.Contains(city));
+            query = query.Where(r => r.City.ToLower() == city.ToLower());
         }
 
         if (!string.IsNullOrWhiteSpace(district))
         {
-            query = query.Where(r => r.District.Contains(district));
+            query = query.Where(r => r.District.ToLower() == district.ToLower());
         }
 
         if (!string.IsNullOrWhiteSpace(neighbourhood))
         {
-            query = query.Where(r => r.Neighbourhood != null && r.Neighbourhood.Contains(neighbourhood));
+            query = query.Where(r => r.Neighbourhood != null && r.Neighbourhood.ToLower() == neighbourhood.ToLower());
         }
 
         if (active.HasValue)
@@ -388,17 +388,17 @@ public class AdminService
 
         if (!string.IsNullOrWhiteSpace(city))
         {
-            query = query.Where(r => r.City.Contains(city));
+            query = query.Where(r => r.City.ToLower() == city.ToLower());
         }
 
         if (!string.IsNullOrWhiteSpace(district))
         {
-            query = query.Where(r => r.District.Contains(district));
+            query = query.Where(r => r.District.ToLower() == district.ToLower());
         }
 
         if (!string.IsNullOrWhiteSpace(neighbourhood))
         {
-            query = query.Where(r => r.Neighbourhood != null && r.Neighbourhood.Contains(neighbourhood));
+            query = query.Where(r => r.Neighbourhood != null && r.Neighbourhood.ToLower() == neighbourhood.ToLower());
         }
 
         if (active.HasValue)

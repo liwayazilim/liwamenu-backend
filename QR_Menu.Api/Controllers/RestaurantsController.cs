@@ -187,13 +187,36 @@ public class RestaurantsController : ControllerBase
         return Ok(ResponsBase.Create("Restoran bilgileri başarıyla alındı", "Restaurant information retrieved successfully", "200", restaurant));
     }
 
-    [HttpPost("CreateRestaurant")]
+    [HttpPost("AddRestaurant")]
     [RequirePermission(Permissions.Restaurants.Create)]
-    public async Task<ActionResult<ResponsBase>> CreateRestaurant([FromBody] RestaurantCreateDto dto)
+    public async Task<ActionResult<ResponsBase>> AddRestaurant(
+        [FromQuery] Guid? userId,
+        [FromBody] RestaurantCreateDto dto)
     {
-        var restaurant = await _restaurantService.CreateAsync(dto);
+        // If userId is not provided in query, get it from the authenticated user
+        if (!userId.HasValue)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (userIdStr == null || !Guid.TryParse(userIdStr, out var authenticatedUserId))
+                return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
+            userId = authenticatedUserId;
+        }
+
+        var (restaurant, errorMessage) = await _restaurantService.CreateAsync(dto, userId.Value);
+        
+        if (restaurant == null)
+        {
+            if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound(ResponsBase.Create("Kullanıcı bulunamadı.", "User not found.", "404"));
+            else if (errorMessage == "Bayi bulunamadı.")
+                return NotFound(ResponsBase.Create("Bayi bulunamadı.", "Dealer not found.", "404"));
+            else
+                return BadRequest(ResponsBase.Create(errorMessage ?? "Geçersiz istek", "Invalid request", "400"));
+        }
+        
         return Ok(ResponsBase.Create("Restoran başarıyla oluşturuldu", "Restaurant created successfully", "201", restaurant));
     }
+
 
     [HttpPut("UpdateRestaurantById")]
     [RequirePermission(Permissions.Restaurants.Update)]

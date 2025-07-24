@@ -25,6 +25,7 @@ public class User : IdentityUser<Guid>
     public string? Note { get; set; }
     public bool SendSMSNotify { get; set; } = true;
     public bool SendEmailNotify { get; set; } = true;
+    public bool IsUseDemoLicense { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
     public ICollection<Restaurant>? Restaurants { get; set; }
