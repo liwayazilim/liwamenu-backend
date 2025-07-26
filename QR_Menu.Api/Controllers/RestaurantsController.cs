@@ -211,6 +211,39 @@ public class RestaurantsController : BaseController
         return Success("Restoran başarıyla güncellendi", "Restaurant updated successfully");
     }
 
+    [HttpPut("UpdateRestaurant")]
+    [RequirePermission(Permissions.Restaurants.Update)]
+    public async Task<ActionResult<ResponsBase>> UpdateRestaurantWithDealer(
+        [FromBody] AdminRestaurantUpdateDto request, 
+        Guid restaurantId, 
+        Guid? userId = null)
+    {
+        // If userId is not provided, get it from the authenticated user
+        if (!userId.HasValue)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (userIdStr == null || !Guid.TryParse(userIdStr, out var authenticatedUserId))
+                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+            userId = authenticatedUserId;
+        }
+
+        var (success, errorMessage) = await _adminService.UpdateRestaurantWithDealerAsync(request, restaurantId, userId.Value);
+        
+        if (!success)
+        {
+            if (errorMessage == "Restoran bulunamadı.")
+                return NotFound("Restoran bulunamadı.", "Restaurant not found.");
+            else if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
+            else if (errorMessage == "Bayi bulunamadı.")
+                return NotFound("Bayi bulunamadı.", "Dealer not found.");
+            else
+                return BadRequest(errorMessage ?? "Restoran güncellenirken hata oluştu.", "Error occurred while updating restaurant.");
+        }
+
+        return Success("Restoran güncellendi.", "Restaurant updated.");
+    }
+
     [HttpPut("UpdateMyRestaurantById")]
     [RequirePermission(Permissions.Restaurants.UpdateOwn)]
     public async Task<ActionResult<ResponsBase>> UpdateMyRestaurant(Guid id, [FromBody] RestaurantUpdateDto dto)

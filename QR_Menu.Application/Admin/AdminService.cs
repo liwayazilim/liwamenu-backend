@@ -452,6 +452,66 @@ public class AdminService
 
     #endregion
 
+    #region Restaurant Management - Admin Operations
+
+    public async Task<(bool success, string? errorMessage)> UpdateRestaurantWithDealerAsync(AdminRestaurantUpdateDto request, Guid restaurantId, Guid userId)
+    {
+        // Validate restaurant exists
+        var restaurant = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == restaurantId);
+        if (restaurant == null)
+            return (false, "Restoran bulunamadı.");
+
+        // Validate user exists
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+            return (false, "Kullanıcı bulunamadı.");
+
+        // Validate dealer exists if dealerId is provided
+        if (request.DealerId.HasValue)
+        {
+            var dealer = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == request.DealerId.Value && u.IsDealer);
+            if (dealer == null)
+                return (false, "Bayi bulunamadı.");
+        }
+
+        // Update restaurant properties
+        if (request.Name != null) restaurant.Name = request.Name;
+        if (request.Telefon != null) restaurant.Telefon = request.Telefon;
+        if (request.City != null) restaurant.City = request.City;
+        if (request.District != null) restaurant.District = request.District;
+        if (request.Neighbourhood != null) restaurant.Neighbourhood = request.Neighbourhood;
+        if (request.Address != null) restaurant.Address = request.Address;
+        if (request.Lat.HasValue) restaurant.Lat = request.Lat.Value;
+        if (request.Lng.HasValue) restaurant.Lng = request.Lng.Value;
+        if (request.IsActive.HasValue) restaurant.IsActive = request.IsActive.Value;
+        if (request.WorkingHours != null) restaurant.WorkingHours = request.WorkingHours;
+        if (request.MinDistance.HasValue) restaurant.MinDistance = request.MinDistance.Value;
+        if (request.GoogleAnalytics != null) restaurant.GoogleAnalytics = request.GoogleAnalytics;
+        if (request.DefaultLang != null) restaurant.DefaultLang = request.DefaultLang;
+        if (request.InPersonOrder.HasValue) restaurant.InPersonOrder = request.InPersonOrder.Value;
+        if (request.OnlineOrder.HasValue) restaurant.OnlineOrder = request.OnlineOrder.Value;
+        if (request.Slogan1 != null) restaurant.Slogan1 = request.Slogan1;
+        if (request.Slogan2 != null) restaurant.Slogan2 = request.Slogan2;
+        if (request.Hide.HasValue) restaurant.Hide = request.Hide.Value;
+
+        // Update dealer assignment if provided
+        if (request.DealerId.HasValue)
+        {
+            restaurant.DealerId = request.DealerId.Value;
+        }
+
+        // Update user assignment if provided
+        if (request.UserId.HasValue)
+        {
+            restaurant.UserId = request.UserId.Value;
+        }
+
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
+
+    #endregion
+
    
 
     #region License Management
