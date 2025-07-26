@@ -259,11 +259,42 @@ public class RestaurantsController : BaseController
 
     [HttpDelete("DeleteRestaurantById")]
     [RequirePermission(Permissions.Restaurants.Delete)]
-    public async Task<ActionResult<ResponsBase>> DeleteRestaurant(Guid id)
+    public async Task<ActionResult<ResponsBase>> DeleteRestaurant(Guid restaurantId)
     {
-        var success = await _restaurantService.DeleteAsync(id);
-        if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
+        var (success, errorMessage) = await _restaurantService.DeleteRestaurantByIdAsync(restaurantId);
+        
+        if (!success)
+        {
+            if (errorMessage == "Restoran bulunamadı.")
+                return NotFound("Restoran bulunamadı.", "Restaurant not found.");
+            else if (errorMessage.Contains("lisansı var"))
+                return BadRequest(errorMessage, "Restaurant has licenses and cannot be deleted.");
+            else
+                return BadRequest(errorMessage ?? "Restoran silinirken hata oluştu.", "Error occurred while deleting restaurant.");
+        }
+        
         return Success("Restoran başarıyla silindi", "Restaurant deleted successfully");
+    }
+
+    [HttpPut("RestaurantTransfer")]
+    [RequirePermission(Permissions.Restaurants.ManageOwnership)]
+    public async Task<ActionResult<ResponsBase>> RestaurantTransfer(Guid userId, Guid restaurantId)
+    {
+        var (success, errorMessage) = await _restaurantService.RestaurantTransferAsync(restaurantId, userId);
+        
+        if (!success)
+        {
+            if (errorMessage == "Restoran bulunamadı.")
+                return NotFound("Restoran bulunamadı.", "Restaurant not found.");
+            else if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
+            else if (errorMessage == "Lisanslar bulunamadı.")
+                return NotFound("Lisanslar bulunamadı.", "Licenses not found.");
+            else
+                return BadRequest(errorMessage ?? "Restoran transfer edilirken hata oluştu.", "Error occurred while transferring restaurant.");
+        }
+        
+        return Success("Restoran transfer edildi.", "Restaurant has been transferred.");
     }
 
 

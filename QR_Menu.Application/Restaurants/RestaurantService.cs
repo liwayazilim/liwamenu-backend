@@ -136,6 +136,40 @@ public class RestaurantService
         return (_mapper.Map<RestaurantReadDto>(entity), null);
     }
 
+    public async Task<(bool success, string? errorMessage)> RestaurantTransferAsync(Guid restaurantId, Guid userId)
+    {
+        // Check if restaurant exists
+        var restaurant = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == restaurantId);
+        if (restaurant == null)
+            return (false, "Restoran bulunamadı.");
+
+        // Check if user exists
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+            return (false, "Kullanıcı bulunamadı.");
+
+        // Update restaurant ownership
+        restaurant.UserId = userId;
+        restaurant.LastUpdateDateTime = DateTime.UtcNow;
+
+        // Update associated licenses
+        var licenses = await _context.Licenses
+            .Where(l => l.RestaurantId == restaurantId)
+            .ToListAsync();
+
+        if (licenses.Any())
+        {
+            foreach (var license in licenses)
+            {
+                license.UserId = userId;
+                license.LastUpdateDateTime = DateTime.UtcNow;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
+
     public async Task<bool> UpdateAsync(Guid id, RestaurantUpdateDto dto)
     {
         var entity = await _context.Restaurants.FindAsync(id);
@@ -153,5 +187,26 @@ public class RestaurantService
         _context.Restaurants.Remove(entity);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<(bool success, string? errorMessage)> DeleteRestaurantByIdAsync(Guid restaurantId)
+    {
+        // Check if restaurant exists
+        var restaurant = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == restaurantId);
+        if (restaurant == null)
+            return (false, "Restoran bulunamadı.");
+
+        // Check if restaurant has licenses
+        var restaurantLicenses = await _context.Licenses
+            .Where(l => l.RestaurantId == restaurantId)
+            .CountAsync();
+        
+        if (restaurantLicenses > 0)
+            return (false, $"Restoranın {restaurantLicenses} ilişkili lisansı var. Restoran silinemez!");
+
+        // If no restrictions, delete the restaurant
+        _context.Restaurants.Remove(restaurant);
+        await _context.SaveChangesAsync();
+        return (true, null);
     }
 } 

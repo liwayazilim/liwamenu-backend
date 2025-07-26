@@ -241,6 +241,40 @@ public class LicensesController : BaseController
         return Success("Lisans aktiflik durumu başarıyla güncellendi", "License active status updated successfully");
     }
 
+    [HttpPut("UpdateLicenseDate")]
+    [RequirePermission(Permissions.Licenses.Update)]
+    public async Task<ActionResult<ResponsBase>> UpdateLicenseDate(Guid licenseId, DateTime startDateTime, DateTime endDateTime)
+    {
+        var (success, errorMessage) = await _adminService.UpdateLicenseDateAsync(licenseId, startDateTime, endDateTime);
+        if(!success)
+        {
+            if (errorMessage == "Lisans bulunamadı.")
+                return NotFound("Lisans bulunamadı.", "License not found.");
+            else
+                return BadRequest(errorMessage ?? "Lisans tarihi güncellenirken hata oluştu.", "Error occurred while updating license date.");
+        }
+        return Success("Lisans tarihi başarıyla güncellendi", "License date updated successfully");
+    }
+
+
+    [HttpPut("LicenseTransfer")]
+    [RequirePermission(Permissions.Licenses.Update)]
+    public async Task<ActionResult<ResponsBase>> LicenseTransfer(Guid licenseId, Guid restaurantId)
+    {
+        var (success, errorMessage) = await _adminService.LicenseTransferAsync(licenseId, restaurantId);
+        
+        if (!success)
+        {
+            if (errorMessage == "Lisans bulunamadı.")
+                return NotFound("Lisans bulunamadı.", "License not found.");
+            else if (errorMessage == "Restoran bulunamadı.")
+                return NotFound("Restoran bulunamadı.", "Restaurant not found.");
+            else
+                return BadRequest(errorMessage ?? "Lisans transfer edilirken hata oluştu.", "Error occurred while transferring license.");
+        }
+        
+        return Success("Lisans transfer edildi.", "License has been transferred.");
+    }
 
     [HttpPut("bulk-status")]
     [RequirePermission(Permissions.Licenses.BulkOperations)]

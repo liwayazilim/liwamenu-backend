@@ -719,8 +719,8 @@ public class AdminService
             UserId = dto.UserId,
             RestaurantId = dto.RestaurantId,
             LicensePackageId = dto.LicensePackageId,
-            StartDateTime = dto.StartDateTime,
-            EndDateTime = endDateTime, // Use calculated end date
+            StartDateTime = DateTime.SpecifyKind(dto.StartDateTime, DateTimeKind.Utc),
+            EndDateTime = DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc), // Use calculated end date
             IsActive = dto.IsActive,
             UserPrice = licensePackage.UserPrice,
             DealerPrice = licensePackage.DealerPrice,
@@ -742,8 +742,8 @@ public class AdminService
         if (license == null)
             return false;
 
-        if (dto.StartDateTime.HasValue) license.StartDateTime = dto.StartDateTime.Value;
-        if (dto.EndDateTime.HasValue) license.EndDateTime = dto.EndDateTime.Value;
+        if (dto.StartDateTime.HasValue) license.StartDateTime = DateTime.SpecifyKind(dto.StartDateTime.Value, DateTimeKind.Utc);
+        if (dto.EndDateTime.HasValue) license.EndDateTime = DateTime.SpecifyKind(dto.EndDateTime.Value, DateTimeKind.Utc);
         if (dto.IsActive.HasValue) license.IsActive = dto.IsActive.Value;
         if (dto.UserPrice.HasValue) license.UserPrice = dto.UserPrice.Value;
         if (dto.DealerPrice.HasValue) license.DealerPrice = dto.DealerPrice.Value;
@@ -809,6 +809,41 @@ public class AdminService
 
         return licenses;
     }
+
+    public async Task<(bool success, string? errorMessage)> LicenseTransferAsync(Guid licenseId, Guid restaurantId)
+    {
+        // Check if license exists
+        var license = await _context.Licenses.FirstOrDefaultAsync(l => l.Id == licenseId);
+        if (license == null)
+            return (false, "Lisans bulunamadı.");
+
+        // Check if restaurant exists
+        var restaurant = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == restaurantId);
+        if (restaurant == null)
+            return (false, "Restoran bulunamadı.");
+
+        // Update license restaurant assignment
+        license.RestaurantId = restaurantId;
+        license.LastUpdateDateTime = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
+
+   public async Task<(bool success, string? errorMessage)> UpdateLicenseDateAsync(Guid licenseId, DateTime startDateTime, DateTime endDateTime)
+   {
+        var license = await _context.Licenses.FirstOrDefaultAsync(l => l.Id == licenseId);
+        if(license == null)
+            return (false, "Lisans bulunamadı");
+
+        // Convert DateTime values to UTC to avoid PostgreSQL issues
+        license.StartDateTime = DateTime.SpecifyKind(startDateTime, DateTimeKind.Utc);
+        license.EndDateTime = DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc);
+        license.LastUpdateDateTime = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return (true, null);
+   }
 
     public async Task<(bool success, string? errorMessage)> UpdateLicenseActiveAsync(Guid LicenseId, bool active)
     {

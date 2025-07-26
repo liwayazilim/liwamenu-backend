@@ -196,10 +196,22 @@ public class UsersController : BaseController
 
     [HttpDelete("DeleteUserById")]
     [RequirePermission(Permissions.Users.Delete)]
-    public async Task<ActionResult<ResponsBase>> DeleteUser(Guid id)
+    public async Task<ActionResult<ResponsBase>> DeleteUser(Guid userId)
     {
-        var success = await _userService.DeleteAsync(id);
-        if (!success) return NotFound("Kullanıcı bulunamadı", "User not found");
+        var (success, errorMessage) = await _userService.DeleteUserByIdAsync(userId);
+        
+        if (!success)
+        {
+            if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
+            else if (errorMessage.Contains("restoranı var"))
+                return BadRequest(errorMessage, "User has restaurants and cannot be deleted.");
+            else if (errorMessage.Contains("lisansı var"))
+                return BadRequest(errorMessage, "User has licenses and cannot be deleted.");
+            else
+                return BadRequest(errorMessage ?? "Kullanıcı silinirken hata oluştu.", "Error occurred while deleting user.");
+        }
+        
         return Success("Kullanıcı başarıyla silindi", "User deleted successfully");
     }
 

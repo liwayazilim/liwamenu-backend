@@ -463,6 +463,37 @@ public class UserService
         return result.Succeeded;
     }
 
+    public async Task<(bool success, string? errorMessage)> DeleteUserByIdAsync(Guid userId)
+    {
+        // Check if user exists
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+            return (false, "Kullanıcı bulunamadı.");
+
+        // Check if user has restaurants
+        var userRestaurants = await _context.Restaurants
+            .Where(r => r.UserId == userId)
+            .CountAsync();
+        
+        if (userRestaurants > 0)
+            return (false, $"Kullanıcının {userRestaurants} restoranı var. Kullanıcı silinemez!");
+
+        // Check if user has licenses
+        var userLicenses = await _context.Licenses
+            .Where(l => l.UserId == userId)
+            .CountAsync();
+        
+        if (userLicenses > 0)
+            return (false, $"Kullanıcının {userLicenses} ilişkili lisansı var. Kullanıcı silinemez!");
+
+        // If no restrictions, delete the user
+        var result = await _userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+            return (false, "Kullanıcı silinirken hata oluştu.");
+
+        return (true, null);
+    }
+
    
 
   
