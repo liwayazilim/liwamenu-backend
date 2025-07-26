@@ -6,7 +6,6 @@ using QR_Menu.Infrastructure.Authorization;
 using QR_Menu.Domain.Common;
 using QR_Menu.Application.Admin;
 using QR_Menu.Application.Admin.DTOs;
-using QR_Menu.Application.Licenses;
 using QR_Menu.Application.Users.DTOs;
 using QR_Menu.Application.Common;
 using System.Security.Claims;
@@ -16,17 +15,15 @@ namespace QR_Menu.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class RestaurantsController : ControllerBase
+public class RestaurantsController : BaseController
 {
     private readonly RestaurantService _restaurantService;
     private readonly AdminService _adminService;
-    private readonly LicenseService _licenseService;
 
-    public RestaurantsController(RestaurantService restaurantService, AdminService adminService, LicenseService licenseService)
+    public RestaurantsController(RestaurantService restaurantService, AdminService adminService)
     {
         _restaurantService = restaurantService;
         _adminService = adminService;
-        _licenseService = licenseService;
     }
 
     /// <summary>
@@ -62,29 +59,15 @@ public class RestaurantsController : ControllerBase
         // If response is ResponsBase (when both parameters are null), handle it accordingly
         if (response is ResponsBase responsBase)
         {
-            return responsBase.StatusCode == "404" ? NotFound(responsBase) : Ok(responsBase);
+            // Now PaginationHelper always returns 200 status, so we just return Ok
+            return Ok(responsBase);
         }
         
         // If response is data object (when pagination parameters are provided), return it directly
         return Ok(response);
     }
 
-    /// <summary>
-    /// Basic/Public view with essential info only
-    /// </summary>
-    [HttpGet("GetAllRestaurants-WithLessDetails")]
-    [RequirePermission(Permissions.Restaurants.View)]
-    public async Task<ActionResult<ResponsBase>> GetRestaurantsList(
-        [FromQuery] string? search, 
-        [FromQuery] string? city, 
-        [FromQuery] bool? isActive, 
-        [FromQuery] int page = 1, 
-        [FromQuery] int pageSize = 20)
-    {
-        var (restaurants, total) = await _restaurantService.GetAllAsync(search, city, isActive, page, pageSize);
-        var data = new { total, restaurants };
-        return Ok(ResponsBase.Create("Restoran listesi başarıyla alındı", "Restaurant list retrieved successfully", "200", data));
-    }
+    
 
     /// <summary>
     /// User must be logged in to see his own restoranlar
@@ -98,15 +81,15 @@ public class RestaurantsController : ControllerBase
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
-            return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
+            return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
         var (restaurants, total) = await _adminService.GetRestaurantsAsync(
             search, null, null, null, userId, null, null, null, page, pageSize);
         var data = new { total, restaurants };
-        return Ok(ResponsBase.Create("Restoranlarınız başarıyla alındı", "Your restaurants retrieved successfully", "200", data));
+        return Success(data, "Restoranlarınız başarıyla alındı", "Your restaurants retrieved successfully");
     }
 
-    /// <summary>
+    /* /// <summary>
     /// User must be logged in to see his licensed restoranlar
     /// </summary>
     [HttpGet("GetLicensedRestaurants")]
@@ -124,15 +107,15 @@ public class RestaurantsController : ControllerBase
             search, null, null, null, null, userId, null, null, page, pageSize);
         var data = new { total, restaurants };
         return Ok(ResponsBase.Create("Lisanslı restoranlar başarıyla alındı", "Licensed restaurants retrieved successfully", "200", data));
-    }
+    }*/
 
     [HttpGet("GetRestaurantById")]
     [RequirePermission(Permissions.Restaurants.View)]
     public async Task<ActionResult<ResponsBase>> GetRestaurantById(Guid restaurantId)
     {
         var restaurant = await _adminService.GetRestaurantDetailAsync(restaurantId);
-        if (restaurant == null) return NotFound(ResponsBase.Create("Restoran bulunamadı", "Restaurant not found", "404"));
-        return Ok(ResponsBase.Create("Restoran detayları başarıyla alındı", "Restaurant details retrieved successfully", "200", restaurant));
+        if (restaurant == null) return NotFound("Restoran bulunamadı", "Restaurant not found");
+        return Success(restaurant, "Restoran detayları başarıyla alındı", "Restaurant details retrieved successfully");
     }
 
     [HttpGet("GetRestaurantsByUserId")]
@@ -153,8 +136,8 @@ public class RestaurantsController : ControllerBase
         //[FromQuery] bool? onlineOrder = null,
     {
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
-            dataProvider: async (page, size) => await _adminService.GetRestaurantsByUserIdAsync(
-                userId, page, size, searchKey, city, district, neighbourhood, active),
+            dataProvider: async (page, size) => await _adminService.GetRestaurantsAsync(
+                searchKey, city, active, null, userId, null, district, neighbourhood, page, size),
             pageNumber,
             pageSize,
             "Kullanıcının restoranları başarıyla alındı",
@@ -166,7 +149,8 @@ public class RestaurantsController : ControllerBase
         // If response is ResponsBase (when both parameters are null), handle it accordingly
         if (response is ResponsBase responsBase)
         {
-            return responsBase.StatusCode == "404" ? NotFound(responsBase) : Ok(responsBase);
+            // Now PaginationHelper always returns 200 status, so we just return Ok
+            return Ok(responsBase);
         }
         
         // If response is data object (when pagination parameters are provided), return it directly
@@ -183,8 +167,8 @@ public class RestaurantsController : ControllerBase
     public async Task<ActionResult<ResponsBase>> GetRestaurantBasic(Guid id)
     {
         var restaurant = await _restaurantService.GetByIdAsync(id);
-        if (restaurant == null) return NotFound(ResponsBase.Create("Restoran bulunamadı", "Restaurant not found", "404"));
-        return Ok(ResponsBase.Create("Restoran bilgileri başarıyla alındı", "Restaurant information retrieved successfully", "200", restaurant));
+        if (restaurant == null) return NotFound("Restoran bulunamadı", "Restaurant not found");
+        return Success(restaurant, "Restoran bilgileri başarıyla alındı", "Restaurant information retrieved successfully");
     }
 
     [HttpPost("AddRestaurant")]
@@ -198,7 +182,7 @@ public class RestaurantsController : ControllerBase
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
             if (userIdStr == null || !Guid.TryParse(userIdStr, out var authenticatedUserId))
-                return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
+                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
             userId = authenticatedUserId;
         }
 
@@ -207,14 +191,14 @@ public class RestaurantsController : ControllerBase
         if (restaurant == null)
         {
             if (errorMessage == "Kullanıcı bulunamadı.")
-                return NotFound(ResponsBase.Create("Kullanıcı bulunamadı.", "User not found.", "404"));
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
             else if (errorMessage == "Bayi bulunamadı.")
-                return NotFound(ResponsBase.Create("Bayi bulunamadı.", "Dealer not found.", "404"));
+                return NotFound("Bayi bulunamadı.", "Dealer not found.");
             else
-                return BadRequest(ResponsBase.Create(errorMessage ?? "Geçersiz istek", "Invalid request", "400"));
+                return BadRequest(errorMessage ?? "Geçersiz istek", "Invalid request");
         }
         
-        return Ok(ResponsBase.Create("Restoran başarıyla oluşturuldu", "Restaurant created successfully", "201", restaurant));
+        return Success(restaurant, "Restoran başarıyla oluşturuldu", "Restaurant created successfully");
     }
 
 
@@ -223,8 +207,8 @@ public class RestaurantsController : ControllerBase
     public async Task<ActionResult<ResponsBase>> UpdateRestaurant(Guid id, [FromBody] RestaurantUpdateDto dto)
     {
         var success = await _restaurantService.UpdateAsync(id, dto);
-        if (!success) return NotFound(ResponsBase.Create("Restoran bulunamadı", "Restaurant not found", "404"));
-        return Ok(ResponsBase.Create("Restoran başarıyla güncellendi", "Restaurant updated successfully", "200"));
+        if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
+        return Success("Restoran başarıyla güncellendi", "Restaurant updated successfully");
     }
 
     [HttpPut("UpdateMyRestaurantById")]
@@ -233,11 +217,11 @@ public class RestaurantsController : ControllerBase
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
-            return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
+            return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
         var success = await _restaurantService.UpdateAsync(id, dto);
-        if (!success) return NotFound(ResponsBase.Create("Restoran bulunamadı", "Restaurant not found", "404"));
-        return Ok(ResponsBase.Create("Restoranınız başarıyla güncellendi", "Your restaurant updated successfully", "200"));
+        if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
+        return Success("Restoranınız başarıyla güncellendi", "Your restaurant updated successfully");
     }
 
     [HttpDelete("DeleteRestaurantById")]
@@ -245,25 +229,11 @@ public class RestaurantsController : ControllerBase
     public async Task<ActionResult<ResponsBase>> DeleteRestaurant(Guid id)
     {
         var success = await _restaurantService.DeleteAsync(id);
-        if (!success) return NotFound(ResponsBase.Create("Restoran bulunamadı", "Restaurant not found", "404"));
-        return Ok(ResponsBase.Create("Restoran başarıyla silindi", "Restaurant deleted successfully", "200"));
+        if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
+        return Success("Restoran başarıyla silindi", "Restaurant deleted successfully");
     }
 
-    [HttpGet("GetRestaurantLicensesById")]
-    [RequirePermission(Permissions.Licenses.View)]
-    public async Task<ActionResult<ResponsBase>> GetRestaurantLicenses(Guid id)
-    {
-        var licenses = await _licenseService.GetRestaurantLicensesAsync(id);
-        return Ok(ResponsBase.Create("Restoran lisansları başarıyla alındı", "Restaurant licenses retrieved successfully", "200", licenses));
-    }
 
-    [HttpGet("GetDistinctCities")]
-    [RequirePermission(Permissions.Restaurants.View)]
-    public async Task<ActionResult<ResponsBase>> GetDistinctCities()
-    {
-        var cities = await _adminService.GetDistinctCitiesAsync();
-        return Ok(ResponsBase.Create("Şehirler başarıyla alındı", "Cities retrieved successfully", "200", cities));
-    }
 
     [HttpPut("bulk-status")]
     [RequirePermission(Permissions.Restaurants.BulkOperations)]
@@ -281,6 +251,6 @@ public class RestaurantsController : ControllerBase
             successCount,
             totalRequested = dto.Ids.Count
         };
-        return Ok(ResponsBase.Create("Toplu güncelleme tamamlandı", "Bulk update completed", "200", data));
+        return Success(data, "Toplu güncelleme tamamlandı", "Bulk update completed");
     }
 } 

@@ -21,7 +21,8 @@ public abstract class BaseController : ControllerBase
         // If response is ResponsBase (when both parameters are null), handle it accordingly
         if (response is ResponsBase responsBase)
         {
-            return responsBase.StatusCode == "404" ? NotFound(responsBase) : Ok(responsBase);
+            // Now PaginationHelper always returns 200 status, so we just return Ok
+            return Ok(responsBase);
         }
         
         // If response is data object (when pagination parameters are provided), return it directly
@@ -31,6 +32,11 @@ public abstract class BaseController : ControllerBase
     protected ActionResult<ResponsBase> Success<T>(T data, string messageTR, string messageEN)
     {
         return Ok(ResponsBase.Create(messageTR, messageEN, "200", data));
+    }
+
+    protected ActionResult<ResponsBase> Success(string messageTR, string messageEN)
+    {
+        return Ok(ResponsBase.Create(messageTR, messageEN, "200"));
     }
 
     protected ActionResult<ResponsBase> NotFound(string messageTR, string messageEN)

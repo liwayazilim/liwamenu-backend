@@ -14,6 +14,7 @@ public class UserUpdateDto
     public string? Neighbourhood { get; set; }
     public Guid? DealerId { get; set; }
     public string? Note { get; set; }
+    public string? PassiveNote { get; set; } // Note when user is deactivated
     public bool? SendSMSNotify { get; set; }
     public bool? SendEmailNotify { get; set; }
 } 

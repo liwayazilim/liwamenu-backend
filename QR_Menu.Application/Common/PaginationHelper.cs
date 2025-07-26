@@ -19,9 +19,30 @@ public static class PaginationHelper
         // Get data
         var (data, totalCount) = await dataProvider(validPageNumber, validPageSize);
 
-        // Check if data exists
+        // Handle empty data - return empty array instead of 404
         if (data == null || !data.Any())
-            return ResponsBase.Create(notFoundMessageTR, notFoundMessageEN, "404");
+        {
+            if (!shouldPaginate)
+            {
+                // When both parameters are null - return ResponsBase with empty array
+                return ResponsBase.Create(successMessageTR, successMessageEN, "200", new List<T>());
+            }
+            else
+            {
+                // When pagination parameters are provided - return paginated structure with empty data
+                var paginatedData = new
+                {
+                    totalCount = 0,
+                    pageSize = validPageSize,
+                    currentPage = validPageNumber,
+                    totalPages = 0,
+                    hasNextPage = false,
+                    hasPreviousPage = false,
+                    data = new List<T>()
+                };
+                return paginatedData;
+            }
+        }
 
         // Return response based on pagination
         if (!shouldPaginate)

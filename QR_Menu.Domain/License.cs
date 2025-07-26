@@ -7,9 +7,11 @@ public class License
     public double? UserPrice { get; set; }
     public double? DealerPrice { get; set; }
     public Guid? RestaurantId { get; set; }
+    public Guid? LicensePackageId { get; set; }
     public DateTime StartDateTime { get; set; }
     public DateTime EndDateTime { get; set; }
     public bool IsActive { get; set; } = true;
     public User? User { get; set; }
     public Restaurant? Restaurant { get; set; }
+    public LicensePackage? LicensePackage { get; set; }
 } 

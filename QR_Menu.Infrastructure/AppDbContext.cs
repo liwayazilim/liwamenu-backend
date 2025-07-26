@@ -12,6 +12,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
     // Remove DbSet<User> (handled by Identity)
     public DbSet<Restaurant> Restaurants { get; set; }
     public DbSet<License> Licenses { get; set; }
+    public DbSet<LicensePackage> LicensePackages { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<Product> Products { get; set; }
     public DbSet<Category> Categories { get; set; }
@@ -39,6 +40,13 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             .HasOne(r => r.License)
             .WithOne(l => l.Restaurant)
             .HasForeignKey<Restaurant>(r => r.LicenseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // License-LicensePackage
+        modelBuilder.Entity<License>()
+            .HasOne(l => l.LicensePackage)
+            .WithMany(lp => lp.Licenses)
+            .HasForeignKey(l => l.LicensePackageId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // Restaurant-Category

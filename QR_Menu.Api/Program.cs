@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using QR_Menu.Infrastructure;
 using QR_Menu.Application.Restaurants;
 using QR_Menu.Application.Users;
-using QR_Menu.Application.Licenses;
 using QR_Menu.Application.Admin;
 using QR_Menu.Domain.Common.Interfaces;
 using QR_Menu.Infrastructure.Services;
@@ -81,7 +80,6 @@ builder.Services.AddAutoMapper(typeof(RestaurantProfile).Assembly, typeof(UserPr
 builder.Services.AddScoped<RestaurantService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<LicenseService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 
@@ -92,7 +90,7 @@ builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
     options.Password.RequireLowercase = false;
     options.Password.RequireUppercase = false;
     options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredLength = 6; // Increased for better security
+    options.Password.RequiredLength = 4; // Minimum password length
     options.User.RequireUniqueEmail = true;
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
     options.Lockout.MaxFailedAccessAttempts = 5;

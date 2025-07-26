@@ -54,19 +54,11 @@ public static class Permissions
         public const string ManagePricing = "licenses.manage_pricing";
         public const string Export = "licenses.export";
         public const string BulkOperations = "licenses.bulk_operations";
+        public const string ManagePackages = "licenses.manage_packages";
+        public const string ViewPackages = "licenses.view_packages";
     }
 
-    // Dashboard & Analytics Permissions
-    public static class Dashboard
-    {
-        public const string ViewBasic = "dashboard.view_basic";
-        public const string ViewAdvanced = "dashboard.view_advanced";
-        public const string ViewFinancials = "dashboard.view_financials";
-        public const string ViewUserStats = "dashboard.view_user_stats";
-        public const string ViewRestaurantStats = "dashboard.view_restaurant_stats";
-        public const string ViewLicenseStats = "dashboard.view_license_stats";
-        public const string Export = "dashboard.export";
-    }
+
 
     // Order Management Permissions
     public static class Orders
@@ -128,7 +120,6 @@ public static class Permissions
             "users" => GetAllPermissions(typeof(Users)),
             "restaurants" => GetAllPermissions(typeof(Restaurants)),
             "licenses" => GetAllPermissions(typeof(Licenses)),
-            "dashboard" => GetAllPermissions(typeof(Dashboard)),
             "orders" => GetAllPermissions(typeof(Orders)),
             "menu" => GetAllPermissions(typeof(Menu)),
             "system" => GetAllPermissions(typeof(System)),
@@ -157,7 +148,6 @@ public static class Permissions
         allPermissions.AddRange(GetAllPermissions(typeof(Users)));
         allPermissions.AddRange(GetAllPermissions(typeof(Restaurants)));
         allPermissions.AddRange(GetAllPermissions(typeof(Licenses)));
-        allPermissions.AddRange(GetAllPermissions(typeof(Dashboard)));
         allPermissions.AddRange(GetAllPermissions(typeof(Orders)));
         allPermissions.AddRange(GetAllPermissions(typeof(Menu)));
         allPermissions.AddRange(GetAllPermissions(typeof(System)));

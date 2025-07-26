@@ -43,7 +43,7 @@ public class UsersController : BaseController
             dataProvider: async (page, size) => await _adminService.GetUsersAsync(
                 searchKey, dealer, role,city, active, emailConfirmed, page, size),
             pageNumber,
-            pageSize,
+            pageSize, 
             "Kullanıcılar başarıyla alındı",
             "Users retrieved successfully",
             "Kullanıcılar bulunamadı",
@@ -51,14 +51,14 @@ public class UsersController : BaseController
         );
     }
 
-    [HttpGet("GetUsers-WithLessDetails")]
+   /*  [HttpGet("GetUsers-WithLessDetails")]
     [RequirePermission(Permissions.Users.View)]
     public async Task<ActionResult<ResponsBase>> GetUsersList([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var (users, total) = await _userService.GetAllAsync(search, page, pageSize);
         var data = new { total, users };
         return Ok(ResponsBase.Create("Kullanıcı listesi başarıyla alındı", "User list retrieved successfully", "200", data));
-    }
+    }*/
 
 
     [HttpGet("GetUserById")]
@@ -66,8 +66,8 @@ public class UsersController : BaseController
     public async Task<ActionResult<ResponsBase>> GetUserDetailById(Guid userId)
     {
         var data = await _adminService.GetUserDetailAsync(userId);
-        if (data == null) return NotFound(ResponsBase.Create("Kullanıcı bulunamadı", "User not found", "404"));
-        return Ok(ResponsBase.Create("Kullanıcı detayları başarıyla alındı", "User details retrieved successfully", "200", data));
+        if (data == null) return NotFound("Kullanıcı bulunamadı", "User not found");
+        return Success(data, "Kullanıcı detayları başarıyla alındı", "User details retrieved successfully");
     }
 /// <summary>
 /// it returns a user with less details
@@ -77,8 +77,8 @@ public class UsersController : BaseController
     public async Task<ActionResult<ResponsBase>> GetUserBasic(Guid id)
     {
         var user = await _userService.GetByIdAsync(id);
-        if (user == null) return NotFound(ResponsBase.Create("Kullanıcı bulunamadı", "User not found", "404"));
-        return Ok(ResponsBase.Create("Kullanıcı bilgileri başarıyla alındı", "User information retrieved successfully", "200", user));
+        if (user == null) return NotFound("Kullanıcı bulunamadı", "User not found");
+        return Success(user, "Kullanıcı bilgileri başarıyla alındı", "User information retrieved successfully");
     }
 
     [HttpPost("AddUser")]
@@ -94,64 +94,113 @@ public class UsersController : BaseController
             else if (errorMessage == "Telefon numarası zaten kullanılıyor.")
                 return Conflict(ResponsBase.Create("Telefon numarası zaten kullanılıyor.", "Phone number already exists.", "409"));
             else if (errorMessage == "Bayi bulunamadı.")
-                return NotFound(ResponsBase.Create("Bayi bulunamadı.", "Dealer not found.", "404"));
+                return NotFound("Bayi bulunamadı.", "Dealer not found.");
             else
-                return BadRequest(ResponsBase.Create(errorMessage ?? "E-posta zaten mevcut veya doğrulama başarısız", "Email already exists or validation failed", "400"));
+                return BadRequest(errorMessage ?? "E-posta zaten mevcut veya doğrulama başarısız", "Email already exists or validation failed");
         }
         
-        return Ok(ResponsBase.Create("Kullanıcı başarıyla oluşturuldu", "User created successfully", "201", user));
+        return Success(user, "Kullanıcı başarıyla oluşturuldu", "User created successfully");
     }
 
     [HttpPut("UpdateUserById")]
     [RequirePermission(Permissions.Users.Update)]
-    public async Task<ActionResult<ResponsBase>> UpdateUser(Guid id, [FromBody] UserUpdateDto dto)
+    public async Task<ActionResult<ResponsBase>> UpdateUser([FromQuery] Guid id, [FromBody] UserUpdateDto dto)
     {
+        // General user update endpoint - does NOT handle isActive status updates
+        // Usage: PUT /api/Users/UpdateUserById?id={userId}
+        // Body: { "firstName": "John", "lastName": "Doe", "email": "john@example.com", ... }
+        
         var success = await _userService.UpdateAsync(id, dto);
-        if (!success) return NotFound(ResponsBase.Create("Kullanıcı bulunamadı", "User not found", "404"));
-        return Ok(ResponsBase.Create("Kullanıcı başarıyla güncellendi", "User updated successfully", "200"));
+        if (!success) return NotFound("Kullanıcı bulunamadı", "User not found");
+        return Success("Kullanıcı başarıyla güncellendi", "User updated successfully");
     }
+
+    [HttpPut("UpdateUserIsActive")]
+    [RequirePermission(Permissions.Users.Update)]
+    public async Task<ActionResult<ResponsBase>> UpdateUserIsActive(Guid userId, bool isActive, string? passiveNote = null)
+    {
+        var (success, errorMessage) = await _userService.UpdateUserIsActiveAsync(userId, isActive, passiveNote);
+        
+        if (!success)
+        {
+            if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
+            else
+                return BadRequest(errorMessage ?? "Kullanıcı güncellenirken hata oluştu.", "Error occurred while updating user.");
+        }
+
+        return Success("Kullanıcı güncellendi.", "User updated.");
+    }
+
+    [HttpPut("UpdateUserIsVerify")]
+    [RequirePermission(Permissions.Users.Update)]
+    public async Task<ActionResult<ResponsBase>> UpdateUserIsVerified(Guid UserId, bool isVerify)
+    {
+        var (success, errorMessage) = await _userService.UpdateUserIsVerifiedAsync(UserId, isVerify);
+        if(!success)
+        {
+            if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
+
+            else 
+            {
+                return BadRequest(errorMessage ?? "Kullanıcı güncellenirken hata oluştu.", "Error occurred while updating user.");
+            }    
+        }
+
+        return Success("Kullanıcı güncellendi.", "User updated.");
+    }
+
+    [HttpPut("UpdateUserIsDealer")]
+    [RequirePermission(Permissions.Users.Update)]
+    public async Task<ActionResult<ResponsBase>> UpdateUserIsDealer(
+        Guid userId, 
+        bool isDealer, 
+        bool sendSMSNotify = false, 
+        bool sendEmailNotify = false)
+    {
+        var (success, errorMessage) = await _userService.UpdateUserIsDealerAsync(userId, isDealer, sendSMSNotify, sendEmailNotify);
+        
+        if (!success)
+        {
+            if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
+            else
+                return BadRequest(errorMessage ?? "Kullanıcı güncellenirken hata oluştu.", "Error occurred while updating user.");
+        }
+
+        return Success("Kullanıcı güncellendi.", "User updated.");
+    }
+
+    [HttpPut("DealerTransfer")]
+    [RequirePermission(Permissions.Users.Update)]
+    public async Task<ActionResult<ResponsBase>> DealerTransfer(Guid userId, Guid dealerUserId)
+    {
+        var (success, errorMessage) = await _userService.DealerTransferAsync(userId, dealerUserId);
+        
+        if (!success)
+        {
+            if (errorMessage == "Kullanıcı bulunamadı.")
+                return NotFound("Kullanıcı bulunamadı.", "User not found.");
+            else if (errorMessage == "Bayi bulunamadı.")
+                return NotFound("Bayi bulunamadı.", "Dealer not found.");
+            else if (errorMessage == "Restoran bulunamadı.")
+                return NotFound("Restoran bulunamadı.", "Restaurant not found.");
+            else
+                return BadRequest(errorMessage ?? "Transfer işlemi sırasında hata oluştu.", "Error occurred during transfer.");
+        }
+
+        return Success("Kullanıcı transfer edildi.", "User has been transferred.");
+    }
+
 
     [HttpDelete("DeleteUserById")]
     [RequirePermission(Permissions.Users.Delete)]
     public async Task<ActionResult<ResponsBase>> DeleteUser(Guid id)
     {
         var success = await _userService.DeleteAsync(id);
-        if (!success) return NotFound(ResponsBase.Create("Kullanıcı bulunamadı", "User not found", "404"));
-        return Ok(ResponsBase.Create("Kullanıcı başarıyla silindi", "User deleted successfully", "200"));
-    }
-
-    [HttpGet("GetUserRestaurantsById")]
-    [RequirePermission(Permissions.Restaurants.View)]
-    public async Task<ActionResult<ResponsBase>> GetUserRestaurants(Guid id)
-    {
-        var user = await _adminService.GetUserDetailAsync(id);
-        if (user == null) return NotFound(ResponsBase.Create("Kullanıcı bulunamadı", "User not found", "404"));
-        return Ok(ResponsBase.Create("Kullanıcı restoranları başarıyla alındı", "User restaurants retrieved successfully", "200", user.Restaurants));
-    }
-
-    [HttpGet("GetUserLicensesById")]
-    [RequirePermission(Permissions.Licenses.View)]
-    public async Task<ActionResult<ResponsBase>> GetUserLicenses(Guid id)
-    {
-        var user = await _adminService.GetUserDetailAsync(id);
-        if (user == null) return NotFound(ResponsBase.Create("Kullanıcı bulunamadı", "User not found", "404"));
-        return Ok(ResponsBase.Create("Kullanıcı lisansları başarıyla alındı", "User licenses retrieved successfully", "200", user.Licenses));
-    }
-
-    [HttpGet("GetAvailableOwners")]
-    [RequirePermission(Permissions.Users.View)]
-    public async Task<ActionResult<ResponsBase>> GetAvailableOwners()
-    {
-        var owners = await _adminService.GetAvailableOwnersAsync();
-        return Ok(ResponsBase.Create("Mevcut sahipler başarıyla alındı", "Available owners retrieved successfully", "200", owners));
-    }
-
-    [HttpGet("GetAvailableDealers")]
-    [RequirePermission(Permissions.Users.View)]
-    public async Task<ActionResult<ResponsBase>> GetAvailableDealers()
-    {
-        var dealers = await _adminService.GetAvailableDealersAsync();
-        return Ok(ResponsBase.Create("Mevcut bayiler başarıyla alındı", "Available dealers retrieved successfully", "200", dealers));
+        if (!success) return NotFound("Kullanıcı bulunamadı", "User not found");
+        return Success("Kullanıcı başarıyla silindi", "User deleted successfully");
     }
 
     [HttpPut("bulk-status")]
@@ -167,11 +216,13 @@ public class UsersController : BaseController
         }
         var data = new {
             message = $"{successCount} kullanıcı başarıyla güncellendi",
-            successCount,
-            totalRequested = dto.Ids.Count
+            successCount, 
+            totalRequested = dto.Ids.Count 
         };
-        return Ok(ResponsBase.Create("Toplu güncelleme tamamlandı", "Bulk update completed", "200", data));
+        return Success(data, "Toplu güncelleme tamamlandı", "Bulk update completed");
     }
+
+     
 
     [HttpGet("GetProfile")]
     [Authorize]
@@ -179,9 +230,9 @@ public class UsersController : BaseController
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
-            return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
+            return Unauthorized("Geçersiz kullanıcı", "Invalid user");
         var user = await _userService.GetByIdAsync(userId);
-        if (user == null) return NotFound(ResponsBase.Create("Kullanıcı bulunamadı", "User not found", "404"));
-        return Ok(ResponsBase.Create("Profil bilgileri başarıyla alındı", "Profile information retrieved successfully", "200", user));
+        if (user == null) return NotFound("Kullanıcı bulunamadı", "User not found");
+        return Success(user, "Profil bilgileri başarıyla alındı", "Profile information retrieved successfully");
     }
 }

@@ -6,6 +6,8 @@ public class UserReadDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
+    public DateTime CreatedDateTime { get; set; }
+    public DateTime UpdatedDateTime { get; set; }
     public string Email { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;

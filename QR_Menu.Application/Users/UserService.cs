@@ -17,19 +17,22 @@ public class UserService
     private readonly RoleManager<IdentityRole<Guid>> _roleManager;
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
+    private readonly AppDbContext _context;
 
     public UserService(
         UserManager<User> userManager,
         SignInManager<User> signInManager,
         RoleManager<IdentityRole<Guid>> roleManager,
         IEmailService emailService,
-        IMapper mapper)
+        IMapper mapper,
+        AppDbContext context)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _roleManager = roleManager;
         _emailService = emailService;
         _mapper = mapper;
+        _context = context;
     }
 
     public async Task<(bool Success, string Message)> RegisterAsync(RegisterUserDto dto)
@@ -200,6 +203,8 @@ public class UserService
             FirstName = dto.FirstName,
             LastName = dto.LastName,
             PhoneNumber = dto.PhoneNumber,
+            CreatedDateTime = DateTime.UtcNow,
+            LastUpdateDateTime = DateTime.UtcNow,
             City = dto.City,
             District = dto.District,
             Neighbourhood = dto.Neighbourhood,
@@ -210,8 +215,8 @@ public class UserService
             Role = Enum.TryParse<UserRole>(dto.Role, out var role) ? role : UserRole.Customer,
             IsActive = dto.IsActive,
             IsDealer = dto.IsDealer,
-            EmailConfirmed = true, // Admin/Dealer created users are verified by default
-            CreatedAt = DateTime.UtcNow
+            EmailConfirmed = true // Admin/Dealer created users are verified by default
+            
         };
 
         var result = await _userManager.CreateAsync(user, dto.Password);
@@ -277,34 +282,176 @@ public class UserService
         if (dto.LastName != null && dto.LastName != "string") user.LastName = dto.LastName;
         if (dto.PhoneNumber != null && dto.PhoneNumber != "string") user.PhoneNumber = dto.PhoneNumber;
         if (dto.Role != null && dto.Role != "string" && Enum.TryParse<UserRole>(dto.Role, out var role)) user.Role = role;
-        // Only update boolean values if they are explicitly provided (not default)
-        if (dto.IsActive.HasValue && dto.IsActive != user.IsActive) user.IsActive = dto.IsActive.Value;
-        if (dto.IsDealer.HasValue && dto.IsDealer != user.IsDealer) user.IsDealer = dto.IsDealer.Value;
+        if (dto.IsActive.HasValue) user.IsActive = dto.IsActive.Value;
+        if (dto.IsDealer.HasValue) user.IsDealer = dto.IsDealer.Value;
         if (dto.City != null && dto.City != "string") user.City = dto.City;
         if (dto.District != null && dto.District != "string") user.District = dto.District;
         if (dto.Neighbourhood != null && dto.Neighbourhood != "string") user.Neighbourhood = dto.Neighbourhood;
         if (dto.DealerId.HasValue) user.DealerId = dto.DealerId;
         if (dto.Note != null && dto.Note != "string") user.Note = dto.Note;
+        if (dto.PassiveNote != null && dto.PassiveNote != "string") user.PassiveNote = dto.PassiveNote;
         if (dto.SendSMSNotify.HasValue) user.SendSMSNotify = dto.SendSMSNotify.Value;
         if (dto.SendEmailNotify.HasValue) user.SendEmailNotify = dto.SendEmailNotify.Value;
         
-        // Handle email update carefully - ensure UserName is always set
-        if (dto.Email != null && !string.IsNullOrWhiteSpace(dto.Email) && dto.Email != "string")
-        {
-            user.Email = dto.Email;
-            user.UserName = dto.Email; 
-        }
-        else
-        {
-            
-            if (string.IsNullOrWhiteSpace(user.UserName))
-            {
-                user.UserName = user.Email ?? $"user_{user.Id}";
-            }
-        }
+        // Always update LastUpdateDateTime for any changes
+        user.LastUpdateDateTime = DateTime.UtcNow;
         
         var result = await _userManager.UpdateAsync(user);
         return result.Succeeded;
+    }
+
+    public async Task<(bool Success, string? ErrorMessage)> UpdateUserIsActiveAsync(Guid userId, bool isActive, string? passiveNote = null)
+    {
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) 
+            return (false, "Kullanıcı bulunamadı.");
+        
+        // Ensure SecurityStamp is set (required by Identity)
+        if (string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString();
+        }
+        
+        user.LastUpdateDateTime = DateTime.UtcNow;
+        user.IsActive = isActive;
+        
+        // Update passive note only if provided or if user is being deactivated
+        if (!string.IsNullOrWhiteSpace(passiveNote))
+        {
+            user.PassiveNote = passiveNote;
+        }
+        else if (!isActive && string.IsNullOrWhiteSpace(user.PassiveNote))
+        {
+            // Set default passive note if user is being deactivated and no note provided
+            user.PassiveNote = "Kullanıcı deaktif edildi";
+        }
+        
+        var result = await _userManager.UpdateAsync(user);
+        return result.Succeeded ? (true, null) : (false, "Kullanıcı güncellenirken hata oluştu.");
+    }
+
+    public async Task<(bool success, string? errorMessage)> UpdateUserIsVerifiedAsync(Guid userId, bool isVerify)
+    {
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if(user == null) return (false, "Kullanıcı bulunamadı");
+
+        if(string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString();
+        }
+
+        user.EmailConfirmed = isVerify;
+        user.LastUpdateDateTime = DateTime.UtcNow;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        return result.Succeeded ? (true, null) : (false, "Kullanıcı güncellenirken hata oluştu.");
+    }
+
+    public async Task<(bool success, string? errorMessage)> UpdateUserIsDealerAsync(Guid userId, bool isDealer, bool sendSMSNotify = false, bool sendEmailNotify = false)
+    {
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) 
+            return (false, "Kullanıcı bulunamadı.");
+        
+        // Ensure SecurityStamp is set (required by Identity)
+        if (string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString();
+        }
+        
+        user.LastUpdateDateTime = DateTime.UtcNow;
+        user.IsDealer = isDealer;
+        
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return (false, "Kullanıcı güncellenirken hata oluştu.");
+        }
+
+        // Send notifications if requested
+        if (sendEmailNotify)
+        {
+            try
+            {
+                var emailMessage = $"Merhaba {user.FirstName} {user.LastName}!\n\n" +
+                                 $"Bayi durumunuz güncellendi.\n" +
+                                 $"Yeni durum: {(isDealer ? "Bayi" : "Normal Kullanıcı")}\n\n" +
+                                 $"Bu değişiklik hakkında sorularınız varsa lütfen bizimle iletişime geçin.";
+                
+                await _emailService.SendPasswordResetEmailAsync(user.Email, "Bayi Durumu Güncellendi - QR Menu");
+            }
+            catch (Exception ex)
+            {
+                // Log email sending error but don't fail the user update
+                // You might want to add proper logging here
+            }
+        }
+
+        if (sendSMSNotify)
+        {
+            try
+            {
+                // SMS notification logic would go here
+                // You would need to implement SMS service similar to your original _telsamAPI
+                // For now, we'll just log that SMS should be sent
+                // await _smsService.SendSMS(user.PhoneNumber, $"Bayi durumunuz güncellendi: {(isDealer ? "Bayi" : "Normal Kullanıcı")}");
+            }
+            catch (Exception ex)
+            {
+                // Log SMS sending error but don't fail the user update
+                // You might want to add proper logging here
+            }
+        }
+
+        return (true, null);
+    }
+
+    public async Task<(bool success, string? errorMessage)> DealerTransferAsync(Guid userId, Guid dealerUserId)
+    {
+        // Get the user to be transferred
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+            return (false, "Kullanıcı bulunamadı.");
+
+        // Get the dealer user
+        var dealer = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == dealerUserId && u.IsDealer);
+        if (dealer == null)
+            return (false, "Bayi bulunamadı.");
+
+        // Ensure SecurityStamp is set (required by Identity)
+        if (string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            user.SecurityStamp = Guid.NewGuid().ToString();
+        }
+
+        // Update user's dealer assignment
+        user.DealerId = dealer.Id;
+        user.LastUpdateDateTime = DateTime.UtcNow;
+
+        var userUpdateResult = await _userManager.UpdateAsync(user);
+        if (!userUpdateResult.Succeeded)
+        {
+            return (false, "Kullanıcı güncellenirken hata oluştu.");
+        }
+
+        // Update all restaurants owned by this user to have the new dealer
+        var restaurants = await _context.Restaurants
+            .Where(r => r.UserId == userId)
+            .ToListAsync();
+
+        if (restaurants.Any())
+        {
+            foreach (var restaurant in restaurants)
+            {
+                restaurant.DealerId = dealer.Id;
+                
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        return (true, null);
     }
 
     public async Task<bool> DeleteAsync(Guid id)
@@ -316,32 +463,7 @@ public class UserService
         return result.Succeeded;
     }
 
-    // Helper: Get user by email
-    public async Task<User?> GetByEmailAsync(string email)
-    {
-        return await _userManager.Users.FirstOrDefaultAsync(u => u.Email == email);
-    }
+   
 
-    // Helper: Generate email confirmation token for a user by Id
-    public async Task<string> GenerateEmailConfirmationTokenAsync(Guid userId)
-    {
-        
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user == null) throw new Exception("User not found");
-        return await _userManager.GenerateEmailConfirmationTokenAsync(user);
-    }
-
-    // Helper: Generate email confirmation token for a user by email
-    public async Task<string> GenerateEmailConfirmationTokenAsync(string email)
-    {
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user == null) return string.Empty;
-        return await _userManager.GenerateEmailConfirmationTokenAsync(user);
-    }
-
-    // Helper: Send verification email
-    public async Task SendVerificationEmailAsync(string email, string token)
-    {
-        await _emailService.SendVerificationEmailAsync(email, token);
-    }
+  
 } 

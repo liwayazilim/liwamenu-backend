@@ -23,10 +23,12 @@ public class User : IdentityUser<Guid>
     public string? District { get; set; }
     public string? Neighbourhood { get; set; }
     public string? Note { get; set; }
+    public string? PassiveNote { get; set; } // Note when user is deactivated
     public bool SendSMSNotify { get; set; } = true;
     public bool SendEmailNotify { get; set; } = true;
     public bool IsUseDemoLicense { get; set; } = false;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedDateTime { get; set; } 
+    public DateTime LastUpdateDateTime { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public ICollection<Restaurant>? Restaurants { get; set; }
     public ICollection<License>? Licenses { get; set; }

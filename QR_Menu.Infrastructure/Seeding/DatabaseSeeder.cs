@@ -69,7 +69,9 @@ public class DatabaseSeeder
             Role = UserRole.Manager, // Updated to Manager
             IsActive = true,
             EmailConfirmed = true,
-            IsDealer = false
+            IsDealer = false,
+            CreatedDateTime = DateTime.UtcNow,
+            LastUpdateDateTime = DateTime.UtcNow
         }, "abou1234", Roles.Manager);
 
         // Seed Demo Owner
@@ -85,7 +87,9 @@ public class DatabaseSeeder
             EmailConfirmed = true,
             IsDealer = false,
             City = "Demo City",
-            District = "Demo District"
+            District = "Demo District",
+            CreatedDateTime = DateTime.UtcNow,
+            LastUpdateDateTime = DateTime.UtcNow
         }, "Owner123!", Roles.Owner);
 
         // Seed Demo Dealer
@@ -101,7 +105,9 @@ public class DatabaseSeeder
             EmailConfirmed = true,
             IsDealer = true,
             City = "Demo City",
-            District = "Demo District"
+            District = "Demo District",
+            CreatedDateTime = DateTime.UtcNow,
+            LastUpdateDateTime = DateTime.UtcNow
         }, "Dealer123!", Roles.Dealer);
     }
 

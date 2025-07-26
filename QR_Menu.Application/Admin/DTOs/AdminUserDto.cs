@@ -26,6 +26,8 @@ public class AdminUserDto
     public int ActiveLicensesCount { get; set; }
    
     // Timespans
+    public DateTime CreatedDateTime { get; set; }
+    public DateTime LastUpdateDateTime { get; set; }
     public DateTime? LastLoginDate { get; set; }
     public DateTimeOffset? LockoutEnd { get; set; }
     public int AccessFailedCount { get; set; }

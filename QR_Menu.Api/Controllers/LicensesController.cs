@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using QR_Menu.Application.Licenses;
+using QR_Menu.Application.Admin;
 using QR_Menu.Application.Admin.DTOs;
 using QR_Menu.Application.Users.DTOs;
 using QR_Menu.Infrastructure.Authorization;
@@ -11,15 +11,17 @@ namespace QR_Menu.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class LicensesController : ControllerBase
+public class LicensesController : BaseController
 {
-    private readonly LicenseService _licenseService;
+    private readonly AdminService _adminService;
 
-    public LicensesController(LicenseService licenseService)
+    public LicensesController(AdminService adminService)
     {
-        _licenseService = licenseService;
+        _adminService = adminService;
     }
 
+   
+    ///<param name="dateRange"> 0: Today, 1: Yesterday, 2: Last 7 days, 3: Last 30 days, 4: Last 90 days, 5: Last 180 days, 6: Last 365 days, 7: All time </param>
     [HttpGet("GetLicenses")]
     [RequirePermission(Permissions.Licenses.ViewAll)]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -30,12 +32,15 @@ public class LicensesController : ControllerBase
         [FromQuery] bool? isExpired,
         [FromQuery] Guid? userId,
         [FromQuery] Guid? restaurantId,
+        [FromQuery] bool? isSettingsAdded,
+        [FromQuery] int? licenseTypeId,
+        [FromQuery] int? dateRange,
         [FromQuery] int? pageNumber = null,
         [FromQuery] int? pageSize = null)
     {
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
-            dataProvider: async (page, size) => await _licenseService.GetAllAsync(
-                search, isActive, isExpired, userId, restaurantId, page, size),
+            dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
+                search, isActive, isExpired, userId, restaurantId, isSettingsAdded, licenseTypeId, dateRange, page, size),
             pageNumber,
             pageSize,
             "Lisanslar başarıyla alındı",
@@ -47,7 +52,8 @@ public class LicensesController : ControllerBase
         // If response is ResponsBase 
         if (response is ResponsBase responsBase)
         {
-            return responsBase.StatusCode == "404" ? NotFound(responsBase) : Ok(responsBase);
+            // Now PaginationHelper always returns 200 status, so we just return Ok
+            return Ok(responsBase);
         }
         
         // If response is data object
@@ -60,6 +66,9 @@ public class LicensesController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
         [FromQuery] bool? isExpired,
+        [FromQuery] bool? isSettingsAdded,
+        [FromQuery] int? licenseTypeId,
+        [FromQuery] int? dateRange,
         [FromQuery] int? pageNumber = null,
         [FromQuery] int? pageSize = null)
     {
@@ -68,8 +77,8 @@ public class LicensesController : ControllerBase
             return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
 
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
-            dataProvider: async (pageNum, size) => await _licenseService.GetAllAsync(
-                search, isActive, isExpired, userId, null, pageNum, size),
+            dataProvider: async (pageNum, size) => await _adminService.GetLicensesAsync(
+                search, isActive, isExpired, userId, null, isSettingsAdded, licenseTypeId, dateRange, pageNum, size),
             pageNumber,
             pageSize,
             "Lisanslarınız başarıyla alındı",
@@ -81,7 +90,8 @@ public class LicensesController : ControllerBase
         // If response is ResponsBase 
         if (response is ResponsBase responsBase)
         {
-            return responsBase.StatusCode == "404" ? NotFound(responsBase) : Ok(responsBase);
+            // Now PaginationHelper always returns 200 status, so we just return Ok
+            return Ok(responsBase);
         }
         
         // If response is data object 
@@ -92,86 +102,170 @@ public class LicensesController : ControllerBase
     [RequirePermission(Permissions.Licenses.View)]
     public async Task<ActionResult<ResponsBase>> GetLicenseDetail(Guid id)
     {
-        var license = await _licenseService.GetByIdAsync(id);
-        if (license == null) return NotFound(ResponsBase.Create("Lisans bulunamadı", "License not found", "404"));
-        return Ok(ResponsBase.Create("Lisans detayları başarıyla alındı", "License details retrieved successfully", "200", license));
+        var license = await _adminService.GetLicenseByIdAsync(id);
+        if (license == null) return NotFound("Lisans bulunamadı", "License not found");
+        return Success(license, "Lisans detayları başarıyla alındı", "License details retrieved successfully");
     }
 
-    [HttpPost("CreateLicense")]
+    [HttpPost("AddLicense")]
     [RequirePermission(Permissions.Licenses.Create)]
-    public async Task<ActionResult<ResponsBase>> CreateLicense([FromBody] AdminLicenseCreateDto dto)
+    public async Task<ActionResult<ResponsBase>> AddLicense([FromBody] AdminLicenseCreateDto request)
     {
-        var license = await _licenseService.CreateAsync(dto);
-        return Ok(ResponsBase.Create("Lisans başarıyla oluşturuldu", "License created successfully", "201", license));
+        var result = await _adminService.CreateLicenseAsync(request);
+        
+        // Check if the operation was successful based on status code
+        if (result.StatusCode == "200")
+        {
+            return Ok(result);
+        }
+        else if (result.StatusCode == "404")
+        {
+            return NotFound(result);
+        }
+        else
+        {
+            return BadRequest(result);
+        }
     }
 
     [HttpPut("UpdateLicenseById")]
     [RequirePermission(Permissions.Licenses.Update)]
     public async Task<ActionResult<ResponsBase>> UpdateLicense(Guid id, [FromBody] AdminLicenseUpdateDto dto)
     {
-        var success = await _licenseService.UpdateAsync(id, dto);
-        if (!success) return NotFound(ResponsBase.Create("Lisans bulunamadı", "License not found", "404"));
-        return Ok(ResponsBase.Create("Lisans başarıyla güncellendi", "License updated successfully", "200"));
+        var success = await _adminService.UpdateLicenseAsync(id, dto);
+        if (!success) return NotFound("Lisans bulunamadı", "License not found");
+        return Success("Lisans başarıyla güncellendi", "License updated successfully");
     }
 
     [HttpDelete("DeleteLicenseById")]
     [RequirePermission(Permissions.Licenses.Delete)]
     public async Task<ActionResult<ResponsBase>> DeleteLicense(Guid id)
     {
-        var success = await _licenseService.DeleteAsync(id);
-        if (!success) return NotFound(ResponsBase.Create("Lisans bulunamadı", "License not found", "404"));
-        return Ok(ResponsBase.Create("Lisans başarıyla silindi", "License deleted successfully", "200"));
+        var success = await _adminService.DeleteLicenseAsync(id);
+        if (!success) return NotFound("Lisans bulunamadı", "License not found");
+        return Success("Lisans başarıyla silindi", "License deleted successfully");
     }
 
     [HttpPost("ExtendLicenseById")]
     [RequirePermission(Permissions.Licenses.Extend)]
     public async Task<ActionResult<ResponsBase>> ExtendLicense(Guid id, [FromBody] ExtendLicenseDto dto)
     {
-        var success = await _licenseService.ExtendLicenseAsync(id, dto.NewEndDate);
-        if (!success) return NotFound(ResponsBase.Create("Lisans bulunamadı", "License not found", "404"));
-        return Ok(ResponsBase.Create("Lisans başarıyla uzatıldı", "License extended successfully", "200"));
+        var success = await _adminService.ExtendLicenseAsync(id, dto.NewEndDate);
+        if (!success) return NotFound("Lisans bulunamadı", "License not found");
+        return Success("Lisans başarıyla uzatıldı", "License extended successfully");
     }
 
     [HttpPost("ActivateLicenseById")]
     [RequirePermission(Permissions.Licenses.Activate)]
     public async Task<ActionResult<ResponsBase>> ActivateLicense(Guid id)
     {
-        var success = await _licenseService.ActivateLicenseAsync(id);
-        if (!success) return NotFound(ResponsBase.Create("Lisans bulunamadı", "License not found", "404"));
-        return Ok(ResponsBase.Create("Lisans başarıyla aktifleştirildi", "License activated successfully", "200"));
+        var success = await _adminService.ActivateLicenseAsync(id);
+        if (!success) return NotFound("Lisans bulunamadı", "License not found");
+        return Success("Lisans başarıyla aktifleştirildi", "License activated successfully");
     }
 
     [HttpPost("DeactivateLicenseById")]
     [RequirePermission(Permissions.Licenses.Deactivate)]
     public async Task<ActionResult<ResponsBase>> DeactivateLicense(Guid id)
     {
-        var success = await _licenseService.DeactivateLicenseAsync(id);
-        if (!success) return NotFound(ResponsBase.Create("Lisans bulunamadı", "License not found", "404"));
-        return Ok(ResponsBase.Create("Lisans başarıyla deaktifleştirildi", "License deactivated successfully", "200"));
+        var success = await _adminService.DeactivateLicenseAsync(id);
+        if (!success) return NotFound("Lisans bulunamadı", "License not found");
+        return Success("Lisans başarıyla deaktifleştirildi", "License deactivated successfully");
     }
 
-    [HttpGet("stats")]
-    [RequirePermission(Permissions.Dashboard.ViewLicenseStats)]
-    public async Task<ActionResult<ResponsBase>> GetLicenseStats()
+
+
+    [HttpGet("GetLicensesByUserId")]
+    [RequirePermission(Permissions.Licenses.View)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<object>> GetLicensesByUserId(
+        [FromQuery] Guid userId,
+        [FromQuery] int? pageNumber = null,
+        [FromQuery] int? pageSize = null,
+        [FromQuery] string? searchKey = null,
+        [FromQuery] bool? isActive = null,
+        [FromQuery] bool? isSettingsAdded = null,
+        [FromQuery] int? licenseTypeId = null,
+        [FromQuery] int? dateRange = null)
     {
-        var stats = await _licenseService.GetStatsAsync();
-        return Ok(ResponsBase.Create("Lisans istatistikleri başarıyla alındı", "License stats retrieved successfully", "200", stats));
+        var response = await PaginationHelper.CreatePaginatedResponseAsync(
+            dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
+                searchKey, isActive, null, userId, null, isSettingsAdded, licenseTypeId, dateRange, page, size),
+            pageNumber,
+            pageSize,
+            "Kullanıcının lisansları başarıyla alındı",
+            "User licenses retrieved successfully",
+            "Kullanıcının lisansı bulunamadı",
+            "User licenses not found"
+        );
+
+        // If response is ResponsBase (when both parameters are null), handle it accordingly
+        if (response is ResponsBase responsBase)
+        {
+            // Now PaginationHelper always returns 200 status, so we just return Ok
+            return Ok(responsBase);
+        }
+        
+        // If response is data object (when pagination parameters are provided), return it directly
+        return Ok(response);
     }
 
     [HttpGet("GetUserLicensesById")]
     [RequirePermission(Permissions.Licenses.View)]
     public async Task<ActionResult<ResponsBase>> GetUserLicenses(Guid userId)
     {
-        var licenses = await _licenseService.GetUserLicensesAsync(userId);
-        return Ok(ResponsBase.Create("Kullanıcı lisansları başarıyla alındı", "User licenses retrieved successfully", "200", licenses));
+        var licenses = await _adminService.GetUserLicensesAsync(userId);
+        return Success(licenses, "Kullanıcı lisansları başarıyla alındı", "User licenses retrieved successfully");
     }
 
     [HttpGet("GetRestaurantLicensesById")]
     [RequirePermission(Permissions.Licenses.View)]
     public async Task<ActionResult<ResponsBase>> GetRestaurantLicenses(Guid restaurantId)
     {
-        var licenses = await _licenseService.GetRestaurantLicensesAsync(restaurantId);
-        return Ok(ResponsBase.Create("Restoran lisansları başarıyla alındı", "Restaurant licenses retrieved successfully", "200", licenses));
+        var licenses = await _adminService.GetRestaurantLicensesAsync(restaurantId);
+        return Success(licenses, "Restoran lisansları başarıyla alındı", "Restaurant licenses retrieved successfully");
+    }
+
+    [HttpGet("GetLicensesByRestaurantId")]
+    [RequirePermission(Permissions.Licenses.View)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<object>> GetLicensesByRestaurantId(
+        [FromQuery] Guid restaurantId,
+        [FromQuery] int? pageNumber = null,
+        [FromQuery] int? pageSize = null,
+        [FromQuery] string? searchKey = null,
+        [FromQuery] bool? isActive = null,
+        [FromQuery] bool? isSettingsAdded = null,
+        [FromQuery] int? licenseTypeId = null,
+        [FromQuery] int? dateRange = null)
+    {
+        // Validate restaurant exists
+        var restaurant = await _adminService.GetRestaurantDetailAsync(restaurantId);
+        if (restaurant == null)
+            return NotFound("Restoran bulunamadı.", "Restaurant not found.");
+
+        var response = await PaginationHelper.CreatePaginatedResponseAsync(
+            dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
+                searchKey, isActive, null, null, restaurantId, isSettingsAdded, licenseTypeId, dateRange, page, size),
+            pageNumber,
+            pageSize,
+            "Restoran lisansları başarıyla alındı",
+            "Restaurant licenses retrieved successfully",
+            "Restoran lisansları bulunamadı",
+            "Restaurant licenses not found"
+        );
+
+        // If response is ResponsBase (when both parameters are null), handle it accordingly
+        if (response is ResponsBase responsBase)
+        {
+            // Now PaginationHelper always returns 200 status, so we just return Ok
+            return Ok(responsBase);
+        }
+        
+        // If response is data object (when pagination parameters are provided), return it directly
+        return Ok(response);
     }
 
     [HttpPut("bulk-status")]
@@ -182,7 +276,7 @@ public class LicensesController : ControllerBase
         foreach (var licenseId in dto.Ids)
         {
             var updateDto = new AdminLicenseUpdateDto { IsActive = dto.IsActive };
-            var success = await _licenseService.UpdateAsync(licenseId, updateDto);
+            var success = await _adminService.UpdateLicenseAsync(licenseId, updateDto);
             if (success) successCount++;
         }
         var data = new {
@@ -190,7 +284,7 @@ public class LicensesController : ControllerBase
             successCount,
             totalRequested = dto.Ids.Count
         };
-        return Ok(ResponsBase.Create("Toplu güncelleme tamamlandı", "Bulk update completed", "200", data));
+        return Success(data, "Toplu güncelleme tamamlandı", "Bulk update completed");
     }
 }
 

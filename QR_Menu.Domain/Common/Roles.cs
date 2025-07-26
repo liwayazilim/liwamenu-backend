@@ -59,8 +59,7 @@ public static class Roles
             // Own Financial Data
             Permissions.Finance.ViewOwnFinancials,
 
-            // Basic Dashboard
-            Permissions.Dashboard.ViewBasic,
+
 
             // Own License Viewing
             Permissions.Licenses.ViewOwn
@@ -92,10 +91,7 @@ public static class Roles
             Permissions.Licenses.Activate,
             Permissions.Licenses.Deactivate,
 
-            // Dashboard Access (limited)
-            Permissions.Dashboard.ViewBasic,
-            Permissions.Dashboard.ViewRestaurantStats,
-            Permissions.Dashboard.ViewLicenseStats,
+
 
             // Order Management (licensed restaurants)
             Permissions.Orders.View,
