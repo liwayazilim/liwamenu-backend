@@ -99,7 +99,8 @@ public class RestaurantService
         entity.Id = Guid.NewGuid();
         entity.UserId = userId;
         entity.DealerId = dealerId;
-        entity.CreatedAt = DateTime.UtcNow;
+        entity.CreatedDateTime = DateTime.UtcNow;
+        entity.LastUpdateDateTime = DateTime.UtcNow;
         
         // Map the new field names to the domain model
         entity.Telefon = dto.PhoneNumber; // Map PhoneNumber to Telefon
@@ -140,6 +141,7 @@ public class RestaurantService
         var entity = await _context.Restaurants.FindAsync(id);
         if (entity == null) return false;
         _mapper.Map(dto, entity);
+        entity.LastUpdateDateTime = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return true;
     }

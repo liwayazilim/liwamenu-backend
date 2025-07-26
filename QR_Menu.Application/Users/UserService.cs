@@ -330,7 +330,7 @@ public class UserService
         return result.Succeeded ? (true, null) : (false, "Kullanıcı güncellenirken hata oluştu.");
     }
 
-    public async Task<(bool success, string? errorMessage)> UpdateUserIsVerifiedAsync(Guid userId, bool isVerify)
+    public async Task<(bool success, string? errorMessage)> UpdateUserIsVerifiedAsync(Guid userId, bool emailConfirmed)
     {
         var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
         if(user == null) return (false, "Kullanıcı bulunamadı");
@@ -340,7 +340,7 @@ public class UserService
             user.SecurityStamp = Guid.NewGuid().ToString();
         }
 
-        user.EmailConfirmed = isVerify;
+        user.EmailConfirmed = emailConfirmed;
         user.LastUpdateDateTime = DateTime.UtcNow;
 
         var result = await _userManager.UpdateAsync(user);

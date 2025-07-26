@@ -287,7 +287,7 @@ public class AdminService
         var total = await query.CountAsync();
 
         var restaurants = await query
-            .OrderByDescending(r => r.CreatedAt)
+            .OrderByDescending(r => r.CreatedDateTime)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(r => new AdminRestaurantDto
@@ -311,7 +311,8 @@ public class AdminService
                 Slogan1 = r.Slogan1,
                 Slogan2 = r.Slogan2,
                 Hide = r.Hide,
-                CreatedAt = r.CreatedAt,
+                CreatedDateTime = r.CreatedDateTime,
+                LastUpdateDateTime = r.LastUpdateDateTime,
 
                 // Owner information
                 UserId = r.UserId,
@@ -506,6 +507,9 @@ public class AdminService
             restaurant.UserId = request.UserId.Value;
         }
 
+        // Update LastUpdateDateTime
+        restaurant.LastUpdateDateTime = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
         return (true, null);
     }
@@ -627,6 +631,8 @@ public class AdminService
                 IsActive = l.IsActive,
                 UserPrice = l.UserPrice,
                 DealerPrice = l.DealerPrice,
+                CreatedDateTime = l.CreatedDateTime,
+                LastUpdateDateTime = l.LastUpdateDateTime,
                 UserId = l.UserId,
                 UserName = l.User.FirstName + " " + l.User.LastName,
                 UserEmail = l.User.Email,
@@ -665,6 +671,8 @@ public class AdminService
             IsActive = license.IsActive,
             UserPrice = license.UserPrice,
             DealerPrice = license.DealerPrice,
+            CreatedDateTime = license.CreatedDateTime,
+            LastUpdateDateTime = license.LastUpdateDateTime,
             UserId = license.UserId,
             UserName = license.User.FirstName + " " + license.User.LastName,
             UserEmail = license.User.Email,
@@ -716,6 +724,8 @@ public class AdminService
             IsActive = dto.IsActive,
             UserPrice = licensePackage.UserPrice,
             DealerPrice = licensePackage.DealerPrice,
+            CreatedDateTime = DateTime.UtcNow,
+            LastUpdateDateTime = DateTime.UtcNow
         };
 
         _context.Licenses.Add(license);
@@ -739,6 +749,9 @@ public class AdminService
         if (dto.DealerPrice.HasValue) license.DealerPrice = dto.DealerPrice.Value;
         if (dto.RestaurantId.HasValue) license.RestaurantId = dto.RestaurantId.Value;
 
+        // Update LastUpdateDateTime
+        license.LastUpdateDateTime = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -756,38 +769,9 @@ public class AdminService
 
 
 
-    public async Task<bool> ExtendLicenseAsync(Guid id, DateTime newEndDate)
-    {
-        var license = await _context.Licenses.FindAsync(id);
-        if (license == null)
-            return false;
+   
 
-        license.EndDateTime = newEndDate;
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
-    public async Task<bool> ActivateLicenseAsync(Guid id)
-    {
-        var license = await _context.Licenses.FindAsync(id);
-        if (license == null)
-            return false;
-
-        license.IsActive = true;
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
-    public async Task<bool> DeactivateLicenseAsync(Guid id)
-    {
-        var license = await _context.Licenses.FindAsync(id);
-        if (license == null)
-            return false;
-
-        license.IsActive = false;
-        await _context.SaveChangesAsync();
-        return true;
-    }
+   
 
     public async Task<List<AdminLicenseDto>> GetUserLicensesAsync(Guid userId)
     {
@@ -805,6 +789,8 @@ public class AdminService
                 IsActive = l.IsActive,
                 UserPrice = l.UserPrice,
                 DealerPrice = l.DealerPrice,
+                CreatedDateTime = l.CreatedDateTime,
+                LastUpdateDateTime = l.LastUpdateDateTime,
                 UserId = l.UserId,
                 UserName = l.User.FirstName + " " + l.User.LastName,
                 UserEmail = l.User.Email,
@@ -824,6 +810,18 @@ public class AdminService
         return licenses;
     }
 
+    public async Task<(bool success, string? errorMessage)> UpdateLicenseActiveAsync(Guid LicenseId, bool active)
+    {
+        var license = await _context.Licenses.FirstOrDefaultAsync(l => l.Id == LicenseId);
+        if(license == null)
+            return (false, "Lisans bulunamadı");
+
+        license.IsActive = active;
+        license.LastUpdateDateTime = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
+
     public async Task<List<AdminLicenseDto>> GetRestaurantLicensesAsync(Guid restaurantId)
     {
         var licenses = await _context.Licenses
@@ -840,6 +838,8 @@ public class AdminService
                 IsActive = l.IsActive,
                 UserPrice = l.UserPrice,
                 DealerPrice = l.DealerPrice,
+                CreatedDateTime = l.CreatedDateTime,
+                LastUpdateDateTime = l.LastUpdateDateTime,
                 UserId = l.UserId,
                 UserName = l.User.FirstName + " " + l.User.LastName,
                 UserEmail = l.User.Email,

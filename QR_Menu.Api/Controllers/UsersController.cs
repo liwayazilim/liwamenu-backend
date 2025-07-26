@@ -134,9 +134,9 @@ public class UsersController : BaseController
 
     [HttpPut("UpdateUserIsVerify")]
     [RequirePermission(Permissions.Users.Update)]
-    public async Task<ActionResult<ResponsBase>> UpdateUserIsVerified(Guid UserId, bool isVerify)
+    public async Task<ActionResult<ResponsBase>> UpdateUserIsVerified(Guid UserId, bool emailConfirmed)
     {
-        var (success, errorMessage) = await _userService.UpdateUserIsVerifiedAsync(UserId, isVerify);
+        var (success, errorMessage) = await _userService.UpdateUserIsVerifiedAsync(UserId, emailConfirmed );
         if(!success)
         {
             if (errorMessage == "Kullanıcı bulunamadı.")

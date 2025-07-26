@@ -11,6 +11,8 @@ public class License
     public DateTime StartDateTime { get; set; }
     public DateTime EndDateTime { get; set; }
     public bool IsActive { get; set; } = true;
+    public DateTime CreatedDateTime { get; set; } = DateTime.UtcNow;
+    public DateTime LastUpdateDateTime { get; set; } = DateTime.UtcNow;
     public User? User { get; set; }
     public Restaurant? Restaurant { get; set; }
     public LicensePackage? LicensePackage { get; set; }

@@ -25,7 +25,8 @@ public class Restaurant
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; } = false;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedDateTime { get; set; } = DateTime.UtcNow;
+    public DateTime LastUpdateDateTime { get; set; } = DateTime.UtcNow;
     public User? User { get; set; }
     public License? License { get; set; }
     public ICollection<Category>? Categories { get; set; }

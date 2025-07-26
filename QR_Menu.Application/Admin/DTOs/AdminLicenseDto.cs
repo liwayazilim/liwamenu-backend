@@ -31,4 +31,6 @@ public class AdminLicenseDto
     // Status Information
     public string Status => IsExpired ? "Expired" : IsActive ? "Active" : "Inactive";
     public string LicenseType => RestaurantId.HasValue ? "Restaurant License" : "General License";
+    public DateTime CreatedDateTime { get; set; }
+    public DateTime LastUpdateDateTime { get; set; }
 } 

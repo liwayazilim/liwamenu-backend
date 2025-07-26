@@ -146,34 +146,6 @@ public class LicensesController : BaseController
         return Success("Lisans başarıyla silindi", "License deleted successfully");
     }
 
-    [HttpPost("ExtendLicenseById")]
-    [RequirePermission(Permissions.Licenses.Extend)]
-    public async Task<ActionResult<ResponsBase>> ExtendLicense(Guid id, [FromBody] ExtendLicenseDto dto)
-    {
-        var success = await _adminService.ExtendLicenseAsync(id, dto.NewEndDate);
-        if (!success) return NotFound("Lisans bulunamadı", "License not found");
-        return Success("Lisans başarıyla uzatıldı", "License extended successfully");
-    }
-
-    [HttpPost("ActivateLicenseById")]
-    [RequirePermission(Permissions.Licenses.Activate)]
-    public async Task<ActionResult<ResponsBase>> ActivateLicense(Guid id)
-    {
-        var success = await _adminService.ActivateLicenseAsync(id);
-        if (!success) return NotFound("Lisans bulunamadı", "License not found");
-        return Success("Lisans başarıyla aktifleştirildi", "License activated successfully");
-    }
-
-    [HttpPost("DeactivateLicenseById")]
-    [RequirePermission(Permissions.Licenses.Deactivate)]
-    public async Task<ActionResult<ResponsBase>> DeactivateLicense(Guid id)
-    {
-        var success = await _adminService.DeactivateLicenseAsync(id);
-        if (!success) return NotFound("Lisans bulunamadı", "License not found");
-        return Success("Lisans başarıyla deaktifleştirildi", "License deactivated successfully");
-    }
-
-
 
     [HttpGet("GetLicensesByUserId")]
     [RequirePermission(Permissions.Licenses.View)]
@@ -211,21 +183,7 @@ public class LicensesController : BaseController
         return Ok(response);
     }
 
-    [HttpGet("GetUserLicensesById")]
-    [RequirePermission(Permissions.Licenses.View)]
-    public async Task<ActionResult<ResponsBase>> GetUserLicenses(Guid userId)
-    {
-        var licenses = await _adminService.GetUserLicensesAsync(userId);
-        return Success(licenses, "Kullanıcı lisansları başarıyla alındı", "User licenses retrieved successfully");
-    }
-
-    [HttpGet("GetRestaurantLicensesById")]
-    [RequirePermission(Permissions.Licenses.View)]
-    public async Task<ActionResult<ResponsBase>> GetRestaurantLicenses(Guid restaurantId)
-    {
-        var licenses = await _adminService.GetRestaurantLicensesAsync(restaurantId);
-        return Success(licenses, "Restoran lisansları başarıyla alındı", "Restaurant licenses retrieved successfully");
-    }
+  
 
     [HttpGet("GetLicensesByRestaurantId")]
     [RequirePermission(Permissions.Licenses.View)]
@@ -267,6 +225,22 @@ public class LicensesController : BaseController
         // If response is data object (when pagination parameters are provided), return it directly
         return Ok(response);
     }
+
+    [HttpPut("UpdateLicenseActive")]
+    [RequirePermission(Permissions.Licenses.Update)]
+    public async Task<ActionResult<ResponsBase>> UpdateLicenseActive(Guid LicenseId,  bool active)
+    {
+        var (success, errorMessage) = await _adminService.UpdateLicenseActiveAsync(LicenseId, active);
+        if(!success)
+        {
+            if (errorMessage == "Lisans bulunamadı.")
+                return NotFound("Lisans bulunamadı.", "License not found.");
+            else
+                return BadRequest(errorMessage ?? "Lisans aktiflik durumu güncellenirken hata oluştu.", "Error occurred while updating license active status.");
+        }
+        return Success("Lisans aktiflik durumu başarıyla güncellendi", "License active status updated successfully");
+    }
+
 
     [HttpPut("bulk-status")]
     [RequirePermission(Permissions.Licenses.BulkOperations)]
