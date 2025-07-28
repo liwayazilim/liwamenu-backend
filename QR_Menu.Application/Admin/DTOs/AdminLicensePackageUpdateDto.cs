@@ -4,13 +4,16 @@ namespace QR_Menu.Application.Admin.DTOs;
 
 public class AdminLicensePackageUpdateDto
 {
-    public Guid? EntityGuid { get; set; }
+    [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+    public string? Name { get; set; }
     
-    [Range(1, int.MaxValue, ErrorMessage = "License type ID must be greater than 0")]
-    public int? LicenseTypeId { get; set; }
+    public Guid? EntityGuid { get; set; }
     
     [Range(1, int.MaxValue, ErrorMessage = "Time must be greater than 0")]
     public int? Time { get; set; }
+    
+    [Range(0, 1, ErrorMessage = "TimeId must be 0 (month) or 1 (year)")]
+    public int? TimeId { get; set; }
     
     [Range(0, double.MaxValue, ErrorMessage = "User price must be non-negative")]
     public double? UserPrice { get; set; }

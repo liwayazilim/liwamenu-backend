@@ -6,7 +6,7 @@ public class RestaurantReadDto
     public Guid UserId { get; set; }
     public Guid? DealerId { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Telefon { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public string? Neighbourhood { get; set; }
@@ -23,4 +23,10 @@ public class RestaurantReadDto
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; }
+    
+    // Image properties
+    public string? ImageFileName { get; set; }
+    public string? ImageContentType { get; set; }
+    public bool HasImage => !string.IsNullOrEmpty(ImageFileName);
+    public string? ImageUrl => HasImage ? $"/images/restaurants/{ImageFileName}" : null;
 } 

@@ -8,6 +8,7 @@ using QR_Menu.Infrastructure.Services;
 using QR_Menu.Infrastructure.Authorization;
 using QR_Menu.Infrastructure.Seeding;
 using QR_Menu.Domain.Common;
+using QR_Menu.Application.Common;
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -82,6 +83,7 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<DatabaseSeeder>();
+builder.Services.AddScoped<IImageService, QR_Menu.Application.Common.ImageService>();
 
 // Identity
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options => 
@@ -159,6 +161,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+
+// Configure static files for serving images
+app.UseStaticFiles();
 
 // Add Bearer token middleware before authentication
 app.UseMiddleware<BearerTokenMiddleware>();

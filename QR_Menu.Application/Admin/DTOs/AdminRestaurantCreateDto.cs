@@ -5,7 +5,7 @@ public class AdminRestaurantCreateDto
     public Guid UserId { get; set; }
     public Guid? DealerId { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Telefon { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public string? Neighbourhood { get; set; }

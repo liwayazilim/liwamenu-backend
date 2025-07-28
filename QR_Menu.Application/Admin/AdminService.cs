@@ -294,7 +294,7 @@ public class AdminService
             {
                 Id = r.Id,
                 Name = r.Name,
-                Telefon = r.Telefon,
+                PhoneNumber = r.PhoneNumber,
                 City = r.City,
                 District = r.District,
                 Neighbourhood = r.Neighbourhood,
@@ -370,7 +370,7 @@ public class AdminService
         {
             Id = restaurant.Id,
             Name = restaurant.Name,
-            Telefon = restaurant.Telefon,
+            PhoneNumber = restaurant.PhoneNumber,
             City = restaurant.City,
             District = restaurant.District,
             Neighbourhood = restaurant.Neighbourhood,
@@ -477,7 +477,7 @@ public class AdminService
 
         // Update restaurant properties
         if (request.Name != null) restaurant.Name = request.Name;
-        if (request.Telefon != null) restaurant.Telefon = request.Telefon;
+        if (request.PhoneNumber != null) restaurant.PhoneNumber = request.PhoneNumber;
         if (request.City != null) restaurant.City = request.City;
         if (request.District != null) restaurant.District = request.District;
         if (request.Neighbourhood != null) restaurant.Neighbourhood = request.Neighbourhood;
@@ -527,7 +527,6 @@ public class AdminService
         Guid? userId = null,
         Guid? restaurantId = null,
         bool? isSettingsAdded = null,
-        int? licenseTypeId = null,
         int? dateRange = null,
         int page = 1,
         int pageSize = 20)
@@ -587,12 +586,6 @@ public class AdminService
             {
                 query = query.Where(l => l.RestaurantId == null);
             }
-        }
-
-        // New filter: licenseTypeId (filter by license package type)
-        if (licenseTypeId.HasValue)
-        {
-            query = query.Where(l => l.LicensePackage != null && l.LicensePackage.LicenseTypeId == licenseTypeId.Value);
         }
 
         // New filter: dateRange (filter by date ranges)
@@ -901,11 +894,11 @@ public class AdminService
     public async Task<(List<AdminLicensePackageDto> Packages, int TotalCount)> GetLicensePackagesAsync(
         string? search = null,
         bool? isActive = null,
-        int? licenseTypeId = null,
         int page = 1,
         int pageSize = 20)
     {
         var query = _context.LicensePackages
+            .Include(lp => lp.Licenses)
             .AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -918,10 +911,7 @@ public class AdminService
             query = query.Where(lp => lp.IsActive == isActive.Value);
         }
 
-        if (licenseTypeId.HasValue)
-        {
-            query = query.Where(lp => lp.LicenseTypeId == licenseTypeId.Value);
-        }
+
 
         var total = await query.CountAsync();
         var packages = await query
@@ -931,9 +921,10 @@ public class AdminService
             .Select(lp => new AdminLicensePackageDto
             {
                 Id = lp.Id,
+                Name = lp.Name,
                 EntityGuid = lp.EntityGuid,
-                LicenseTypeId = lp.LicenseTypeId,
                 Time = lp.Time,
+                TimeId = lp.TimeId,
                 UserPrice = lp.UserPrice,
                 DealerPrice = lp.DealerPrice,
                 Description = lp.Description,
@@ -964,9 +955,10 @@ public class AdminService
         return new AdminLicensePackageDto
         {
             Id = package.Id,
+            Name = package.Name,
             EntityGuid = package.EntityGuid,
-            LicenseTypeId = package.LicenseTypeId,
             Time = package.Time,
+            TimeId = package.TimeId,
             UserPrice = package.UserPrice,
             DealerPrice = package.DealerPrice,
             Description = package.Description,
@@ -982,14 +974,27 @@ public class AdminService
         };
     }
 
-    public async Task<AdminLicensePackageDto> CreateLicensePackageAsync(AdminLicensePackageCreateDto dto)
+    public async Task<(AdminLicensePackageDto? Package, string? ErrorMessage)> CreateLicensePackageAsync(AdminLicensePackageCreateDto dto)
     {
+        // Validate request
+        if (string.IsNullOrWhiteSpace(dto.Name) 
+            
+            || (dto.Time <= 0) 
+            || (dto.TimeId < 0 || dto.TimeId > 1) 
+            || (dto.UserPrice <= 0) 
+            || (dto.DealerPrice <= 0))
+        {
+            return (null, "Geçersiz istek. Tüm gerekli alanlar doldurulmalıdır.");
+        }
+
+        // Create license package
         var package = new LicensePackage
         {
             Id = Guid.NewGuid(),
+            Name = dto.Name,
             EntityGuid = dto.EntityGuid,
-            LicenseTypeId = dto.LicenseTypeId,
             Time = dto.Time,
+            TimeId = dto.TimeId,
             UserPrice = dto.UserPrice,
             DealerPrice = dto.DealerPrice,
             Description = dto.Description,
@@ -1001,8 +1006,25 @@ public class AdminService
         _context.LicensePackages.Add(package);
         await _context.SaveChangesAsync();
 
-        var createdPackage = await GetLicensePackageByIdAsync(package.Id);
-        return createdPackage!;
+        var result = new AdminLicensePackageDto
+        {
+            Id = package.Id,
+            Name = package.Name,
+            EntityGuid = package.EntityGuid,
+            Time = package.Time,
+            TimeId = package.TimeId,
+            UserPrice = package.UserPrice,
+            DealerPrice = package.DealerPrice,
+            Description = package.Description,
+            IsActive = package.IsActive,
+            CreatedDateTime = package.CreatedDateTime,
+            LastUpdateDateTime = package.LastUpdateDateTime,
+            LicensesCount = 0, // New package has no licenses yet
+            ActiveLicensesCount = 0,
+            TotalRevenue = 0,
+            MonthlyRevenue = 0
+        };
+        return (result, null);
     }
 
     public async Task<bool> UpdateLicensePackageAsync(Guid id, AdminLicensePackageUpdateDto dto)
@@ -1011,9 +1033,11 @@ public class AdminService
         if (package == null)
             return false;
 
+        // Manual mapping for better performance and clarity
+        if (dto.Name != null) package.Name = dto.Name;
         if (dto.EntityGuid.HasValue) package.EntityGuid = dto.EntityGuid.Value;
-        if (dto.LicenseTypeId.HasValue) package.LicenseTypeId = dto.LicenseTypeId.Value;
         if (dto.Time.HasValue) package.Time = dto.Time.Value;
+        if (dto.TimeId.HasValue) package.TimeId = dto.TimeId.Value;
         if (dto.UserPrice.HasValue) package.UserPrice = dto.UserPrice.Value;
         if (dto.DealerPrice.HasValue) package.DealerPrice = dto.DealerPrice.Value;
         if (dto.Description != null) package.Description = dto.Description;
@@ -1047,26 +1071,29 @@ public class AdminService
     {
         var packages = await _context.LicensePackages
             .Where(lp => lp.IsActive)
+            .Include(lp => lp.Licenses)
             .AsNoTracking()
+            .OrderBy(lp => lp.Time)
             .Select(lp => new AdminLicensePackageDto
             {
                 Id = lp.Id,
+                Name = lp.Name,
                 EntityGuid = lp.EntityGuid,
-                LicenseTypeId = lp.LicenseTypeId,
                 Time = lp.Time,
+                TimeId = lp.TimeId,
                 UserPrice = lp.UserPrice,
                 DealerPrice = lp.DealerPrice,
                 Description = lp.Description,
                 IsActive = lp.IsActive,
                 CreatedDateTime = lp.CreatedDateTime,
                 LastUpdateDateTime = lp.LastUpdateDateTime,
-                LicensesCount = 0,
-                ActiveLicensesCount = 0,
-                TotalRevenue = 0,
-                MonthlyRevenue = 0
-            }).OrderBy(lp => lp.LicenseTypeId)
-            .ThenBy(lp => lp.Time)
-            .ToListAsync();
+                LicensesCount = lp.Licenses != null ? lp.Licenses.Count : 0,
+                ActiveLicensesCount = lp.Licenses != null ? lp.Licenses.Count(l => l.IsActive) : 0,
+                TotalRevenue = lp.Licenses != null ? lp.Licenses.Sum(l => l.UserPrice ?? 0) + lp.Licenses.Sum(l => l.DealerPrice ?? 0) : 0,
+                MonthlyRevenue = lp.Licenses != null ? lp.Licenses.Where(l => l.StartDateTime >= DateTime.UtcNow.AddDays(-30))
+                    .Sum(l => l.UserPrice ?? 0) + lp.Licenses.Where(l => l.StartDateTime >= DateTime.UtcNow.AddDays(-30))
+                    .Sum(l => l.DealerPrice ?? 0) : 0
+            }).ToListAsync();
 
         return packages;
     }

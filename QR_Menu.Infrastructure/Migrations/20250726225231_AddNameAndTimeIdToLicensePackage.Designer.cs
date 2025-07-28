@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using QR_Menu.Infrastructure;
@@ -11,9 +12,11 @@ using QR_Menu.Infrastructure;
 namespace QR_Menu.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250726225231_AddNameAndTimeIdToLicensePackage")]
+    partial class AddNameAndTimeIdToLicensePackage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -275,6 +278,9 @@ namespace QR_Menu.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("LicenseTypeId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -415,15 +421,6 @@ namespace QR_Menu.Infrastructure.Migrations
                     b.Property<bool>("Hide")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("ImageContentType")
-                        .HasColumnType("text");
-
-                    b.Property<byte[]>("ImageData")
-                        .HasColumnType("bytea");
-
-                    b.Property<string>("ImageFileName")
-                        .HasColumnType("text");
-
                     b.Property<bool>("InPersonOrder")
                         .HasColumnType("boolean");
 
@@ -455,14 +452,14 @@ namespace QR_Menu.Infrastructure.Migrations
                     b.Property<bool>("OnlineOrder")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("Slogan1")
                         .HasColumnType("text");
 
                     b.Property<string>("Slogan2")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Telefon")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("UserId")

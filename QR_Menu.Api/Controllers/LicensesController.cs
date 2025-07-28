@@ -33,14 +33,13 @@ public class LicensesController : BaseController
         [FromQuery] Guid? userId,
         [FromQuery] Guid? restaurantId,
         [FromQuery] bool? isSettingsAdded,
-        [FromQuery] int? licenseTypeId,
         [FromQuery] int? dateRange,
         [FromQuery] int? pageNumber = null,
         [FromQuery] int? pageSize = null)
     {
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
             dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
-                search, isActive, isExpired, userId, restaurantId, isSettingsAdded, licenseTypeId, dateRange, page, size),
+                search, isActive, isExpired, userId, restaurantId, isSettingsAdded, dateRange, page, size),
             pageNumber,
             pageSize,
             "Lisanslar başarıyla alındı",
@@ -67,7 +66,6 @@ public class LicensesController : BaseController
         [FromQuery] bool? isActive,
         [FromQuery] bool? isExpired,
         [FromQuery] bool? isSettingsAdded,
-        [FromQuery] int? licenseTypeId,
         [FromQuery] int? dateRange,
         [FromQuery] int? pageNumber = null,
         [FromQuery] int? pageSize = null)
@@ -78,7 +76,7 @@ public class LicensesController : BaseController
 
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
             dataProvider: async (pageNum, size) => await _adminService.GetLicensesAsync(
-                search, isActive, isExpired, userId, null, isSettingsAdded, licenseTypeId, dateRange, pageNum, size),
+                search, isActive, isExpired, userId, null, isSettingsAdded, dateRange, pageNum, size),
             pageNumber,
             pageSize,
             "Lisanslarınız başarıyla alındı",
@@ -158,12 +156,11 @@ public class LicensesController : BaseController
         [FromQuery] string? searchKey = null,
         [FromQuery] bool? isActive = null,
         [FromQuery] bool? isSettingsAdded = null,
-        [FromQuery] int? licenseTypeId = null,
         [FromQuery] int? dateRange = null)
     {
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
             dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
-                searchKey, isActive, null, userId, null, isSettingsAdded, licenseTypeId, dateRange, page, size),
+                searchKey, isActive, null, userId, null, isSettingsAdded, dateRange, page, size),
             pageNumber,
             pageSize,
             "Kullanıcının lisansları başarıyla alındı",
@@ -196,7 +193,6 @@ public class LicensesController : BaseController
         [FromQuery] string? searchKey = null,
         [FromQuery] bool? isActive = null,
         [FromQuery] bool? isSettingsAdded = null,
-        [FromQuery] int? licenseTypeId = null,
         [FromQuery] int? dateRange = null)
     {
         // Validate restaurant exists
@@ -206,7 +202,7 @@ public class LicensesController : BaseController
 
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
             dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
-                searchKey, isActive, null, null, restaurantId, isSettingsAdded, licenseTypeId, dateRange, page, size),
+                searchKey, isActive, null, null, restaurantId, isSettingsAdded, dateRange, page, size),
             pageNumber,
             pageSize,
             "Restoran lisansları başarıyla alındı",

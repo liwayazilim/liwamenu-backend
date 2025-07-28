@@ -4,6 +4,7 @@ using QR_Menu.Application.Restaurants.DTOs;
 using QR_Menu.Domain;
 using QR_Menu.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using QR_Menu.Application.Common;
 
 namespace QR_Menu.Application.Restaurants;
 
@@ -12,12 +13,14 @@ public class RestaurantService
     private readonly AppDbContext _context;
     private readonly IMapper _mapper;
     private readonly UserManager<User> _userManager;
+    private readonly IImageService _imageService;
 
-    public RestaurantService(AppDbContext context, IMapper mapper, UserManager<User> userManager)
+    public RestaurantService(AppDbContext context, IMapper mapper, UserManager<User> userManager, IImageService imageService)
     {
         _context = context;
         _mapper = mapper;
         _userManager = userManager;
+        _imageService = imageService;
     }
 
     public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? searchKey = null, string? city = null, bool? active = null, int pageNumber = 1, int pageSize = 10, string? district = null, string? neighbourhood = null)
@@ -57,7 +60,7 @@ public class RestaurantService
         return entity == null ? null : _mapper.Map<RestaurantReadDto>(entity);
     }
 
-    public async Task<(RestaurantReadDto? Restaurant, string? ErrorMessage)> CreateAsync(RestaurantCreateDto dto, Guid userId, Guid? dealerId = null)
+    public async Task<(RestaurantReadDto? Restaurant, string? ErrorMessage)> CreateAsync(RestaurantCreateDto dto, Guid userId, string webRootPath, Guid? dealerId = null)
     {
         // Validate request
         if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.PhoneNumber) || 
@@ -95,45 +98,56 @@ public class RestaurantService
         }
 
         // Create restaurant
-        var entity = _mapper.Map<Restaurant>(dto);
-        entity.Id = Guid.NewGuid();
-        entity.UserId = userId;
-        entity.DealerId = dealerId;
-        entity.CreatedDateTime = DateTime.UtcNow;
-        entity.LastUpdateDateTime = DateTime.UtcNow;
-        
-        // Map the new field names to the domain model
-        entity.Telefon = dto.PhoneNumber; // Map PhoneNumber to Telefon
-        entity.Lat = dto.Latitude; // Map Latitude to Lat
-        entity.Lng = dto.Longitude; // Map Longitude to Lng
-        
-        // Set default values for fields not in the simplified DTO
-        entity.WorkingHours = null;
-        entity.MinDistance = null;
-        entity.GoogleAnalytics = null;
-        entity.DefaultLang = null;
-        entity.InPersonOrder = true;
-        entity.OnlineOrder = true;
-        entity.Slogan1 = null;
-        entity.Slogan2 = null;
-        entity.Hide = false;
-        
+        var entity = new Restaurant
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            DealerId = dealerId,
+            Name = dto.Name,
+            PhoneNumber = dto.PhoneNumber,
+            City = dto.City,
+            District = dto.District,
+            Neighbourhood = dto.Neighbourhood,
+            Address = dto.Address,
+            Lat = dto.Latitude,
+            Lng = dto.Longitude,
+            IsActive = dto.IsActive,
+            CreatedDateTime = DateTime.UtcNow,
+            LastUpdateDateTime = DateTime.UtcNow
+        };
+
+        // Process image if provided
+        if (dto.Image != null)
+        {
+            try
+            {
+                if (!_imageService.IsValidImageFile(dto.Image))
+                {
+                    return (null, "Geçersiz resim dosyası. Lütfen geçerli bir resim dosyası yükleyin (JPG, PNG, GIF, BMP, maksimum 5MB).");
+                }
+
+                // Validate webRootPath
+                if (string.IsNullOrEmpty(webRootPath))
+                {
+                    return (null, "Web root path is null or empty. Please check server configuration.");
+                }
+
+                var (imageData, fileName, contentType) = await _imageService.ProcessAndStoreImageAsync(dto.Image, entity.Id, webRootPath);
+                entity.ImageData = imageData;
+                entity.ImageFileName = fileName;
+                entity.ImageContentType = contentType;
+            }
+            catch (Exception ex)
+            {
+                return (null, $"Resim işlenirken hata oluştu: {ex.Message}");
+            }
+        }
+
         _context.Restaurants.Add(entity);
         await _context.SaveChangesAsync();
 
-        // Check if this is user's first restaurant and add demo license if needed
-        var restaurantCount = await _context.Restaurants.CountAsync(r => r.UserId == userId);
-        if (restaurantCount == 1 && !user.IsUseDemoLicense)
-        {
-            // Add demo license logic here
-            // await AddDemoLicensesForMarketplaces(entity.Id, userId);
-
-            // Mark user as having used demo license
-            user.IsUseDemoLicense = true;
-            await _userManager.UpdateAsync(user);
-        }
-
-        return (_mapper.Map<RestaurantReadDto>(entity), null);
+        var result = _mapper.Map<RestaurantReadDto>(entity);
+        return (result, null);
     }
 
     public async Task<(bool success, string? errorMessage)> RestaurantTransferAsync(Guid restaurantId, Guid userId)
@@ -170,26 +184,64 @@ public class RestaurantService
         return (true, null);
     }
 
-    public async Task<bool> UpdateAsync(Guid id, RestaurantUpdateDto dto)
+    public async Task<bool> UpdateAsync(Guid id, RestaurantUpdateDto dto, string webRootPath)
     {
         var entity = await _context.Restaurants.FindAsync(id);
         if (entity == null) return false;
+        
+        // Update basic properties
         _mapper.Map(dto, entity);
         entity.LastUpdateDateTime = DateTime.UtcNow;
+
+        // Process image if provided
+        if (dto.Image != null)
+        {
+            try
+            {
+                if (!_imageService.IsValidImageFile(dto.Image))
+                {
+                    return false; // Invalid image file
+                }
+
+                // Delete old image if exists
+                if (!string.IsNullOrEmpty(entity.ImageFileName))
+                {
+                    await _imageService.DeleteImageAsync(entity.ImageFileName, webRootPath);
+                }
+
+                // Process and store new image
+                var (imageData, fileName, contentType) = await _imageService.ProcessAndStoreImageAsync(dto.Image, entity.Id, webRootPath);
+                entity.ImageData = imageData;
+                entity.ImageFileName = fileName;
+                entity.ImageContentType = contentType;
+            }
+            catch (Exception)
+            {
+                return false; // Image processing failed
+            }
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, string webRootPath)
     {
         var entity = await _context.Restaurants.FindAsync(id);
         if (entity == null) return false;
+        
+        // Delete associated image if exists
+        if (!string.IsNullOrEmpty(entity.ImageFileName))
+        {
+            await _imageService.DeleteImageAsync(entity.ImageFileName, webRootPath);
+        }
+        
         _context.Restaurants.Remove(entity);
         await _context.SaveChangesAsync();
         return true;
     }
 
-    public async Task<(bool success, string? errorMessage)> DeleteRestaurantByIdAsync(Guid restaurantId)
+    public async Task<(bool success, string? errorMessage)> DeleteRestaurantByIdAsync(Guid restaurantId, string webRootPath)
     {
         // Check if restaurant exists
         var restaurant = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == restaurantId);
@@ -203,6 +255,12 @@ public class RestaurantService
         
         if (restaurantLicenses > 0)
             return (false, $"Restoranın {restaurantLicenses} ilişkili lisansı var. Restoran silinemez!");
+
+        // Delete associated image if exists
+        if (!string.IsNullOrEmpty(restaurant.ImageFileName))
+        {
+            await _imageService.DeleteImageAsync(restaurant.ImageFileName, webRootPath);
+        }
 
         // If no restrictions, delete the restaurant
         _context.Restaurants.Remove(restaurant);

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace QR_Menu.Application.Restaurants.DTOs;
 
@@ -27,7 +28,8 @@ public class RestaurantCreateDto
     [Required]
     public string Address { get; set; } = string.Empty;
     
-    
-    
     public bool IsActive { get; set; } = true;
+    
+    // Image properties (for form-data)
+    public IFormFile? Image { get; set; }
 } 

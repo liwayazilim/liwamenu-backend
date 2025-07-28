@@ -7,7 +7,7 @@ public class Restaurant
     public Guid? DealerId { get; set; }
     public Guid? LicenseId { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Telefon { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public string? Neighbourhood { get; set; }
@@ -25,6 +25,12 @@ public class Restaurant
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; } = false;
+    
+    // Image properties
+    public byte[]? ImageData { get; set; }
+    public string? ImageFileName { get; set; }
+    public string? ImageContentType { get; set; }
+    
     public DateTime CreatedDateTime { get; set; } = DateTime.UtcNow;
     public DateTime LastUpdateDateTime { get; set; } = DateTime.UtcNow;
     public User? User { get; set; }

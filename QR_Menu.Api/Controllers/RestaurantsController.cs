@@ -19,11 +19,13 @@ public class RestaurantsController : BaseController
 {
     private readonly RestaurantService _restaurantService;
     private readonly AdminService _adminService;
+    private readonly IWebHostEnvironment _environment;
 
-    public RestaurantsController(RestaurantService restaurantService, AdminService adminService)
+    public RestaurantsController(RestaurantService restaurantService, AdminService adminService, IWebHostEnvironment environment)
     {
         _restaurantService = restaurantService;
         _adminService = adminService;
+        _environment = environment;
     }
 
     /// <summary>
@@ -175,7 +177,7 @@ public class RestaurantsController : BaseController
     [RequirePermission(Permissions.Restaurants.Create)]
     public async Task<ActionResult<ResponsBase>> AddRestaurant(
         [FromQuery] Guid? userId,
-        [FromBody] RestaurantCreateDto dto)
+        [FromForm] RestaurantCreateDto dto)
     {
         // If userId is not provided in query, get it from the authenticated user
         if (!userId.HasValue)
@@ -186,7 +188,7 @@ public class RestaurantsController : BaseController
             userId = authenticatedUserId;
         }
 
-        var (restaurant, errorMessage) = await _restaurantService.CreateAsync(dto, userId.Value);
+        var (restaurant, errorMessage) = await _restaurantService.CreateAsync(dto, userId.Value, _environment.WebRootPath);
         
         if (restaurant == null)
         {
@@ -194,6 +196,8 @@ public class RestaurantsController : BaseController
                 return NotFound("Kullanıcı bulunamadı.", "User not found.");
             else if (errorMessage == "Bayi bulunamadı.")
                 return NotFound("Bayi bulunamadı.", "Dealer not found.");
+            else if (errorMessage.Contains("Geçersiz resim"))
+                return BadRequest(errorMessage, "Invalid image file");
             else
                 return BadRequest(errorMessage ?? "Geçersiz istek", "Invalid request");
         }
@@ -204,9 +208,9 @@ public class RestaurantsController : BaseController
 
     [HttpPut("UpdateRestaurantById")]
     [RequirePermission(Permissions.Restaurants.Update)]
-    public async Task<ActionResult<ResponsBase>> UpdateRestaurant(Guid id, [FromBody] RestaurantUpdateDto dto)
+    public async Task<ActionResult<ResponsBase>> UpdateRestaurant(Guid id, [FromForm] RestaurantUpdateDto dto)
     {
-        var success = await _restaurantService.UpdateAsync(id, dto);
+        var success = await _restaurantService.UpdateAsync(id, dto, _environment.WebRootPath);
         if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
         return Success("Restoran başarıyla güncellendi", "Restaurant updated successfully");
     }
@@ -246,13 +250,13 @@ public class RestaurantsController : BaseController
 
     [HttpPut("UpdateMyRestaurantById")]
     [RequirePermission(Permissions.Restaurants.UpdateOwn)]
-    public async Task<ActionResult<ResponsBase>> UpdateMyRestaurant(Guid id, [FromBody] RestaurantUpdateDto dto)
+    public async Task<ActionResult<ResponsBase>> UpdateMyRestaurant(Guid id, [FromForm] RestaurantUpdateDto dto)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
             return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
-        var success = await _restaurantService.UpdateAsync(id, dto);
+        var success = await _restaurantService.UpdateAsync(id, dto, _environment.WebRootPath);
         if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
         return Success("Restoranınız başarıyla güncellendi", "Your restaurant updated successfully");
     }
@@ -261,7 +265,7 @@ public class RestaurantsController : BaseController
     [RequirePermission(Permissions.Restaurants.Delete)]
     public async Task<ActionResult<ResponsBase>> DeleteRestaurant(Guid restaurantId)
     {
-        var (success, errorMessage) = await _restaurantService.DeleteRestaurantByIdAsync(restaurantId);
+        var (success, errorMessage) = await _restaurantService.DeleteRestaurantByIdAsync(restaurantId, _environment.WebRootPath);
         
         if (!success)
         {
@@ -307,7 +311,7 @@ public class RestaurantsController : BaseController
         foreach (var restaurantId in dto.Ids)
         {
             var updateDto = new RestaurantUpdateDto { IsActive = dto.IsActive ?? true };
-            var success = await _restaurantService.UpdateAsync(restaurantId, updateDto);
+            var success = await _restaurantService.UpdateAsync(restaurantId, updateDto, _environment.WebRootPath);
             if (success) successCount++;
         }
         var data = new {

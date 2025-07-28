@@ -8,9 +8,23 @@ public class RestaurantProfile : Profile
 {
     public RestaurantProfile()
     {
-        CreateMap<Restaurant, RestaurantReadDto>();
-        CreateMap<RestaurantCreateDto, Restaurant>();
-        CreateMap<RestaurantUpdateDto, Restaurant>();
+        CreateMap<Restaurant, RestaurantReadDto>()
+            .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => 
+                !string.IsNullOrEmpty(src.ImageFileName) ? $"/images/restaurants/{src.ImageFileName}" : null));
+            
+        CreateMap<RestaurantCreateDto, Restaurant>()
+            .ForMember(dest => dest.Lat, opt => opt.MapFrom(src => src.Latitude))
+            .ForMember(dest => dest.Lng, opt => opt.MapFrom(src => src.Longitude))
+            .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber))
+            .ForMember(dest => dest.ImageData, opt => opt.Ignore())
+            .ForMember(dest => dest.ImageFileName, opt => opt.Ignore())
+            .ForMember(dest => dest.ImageContentType, opt => opt.Ignore());
+            
+        CreateMap<RestaurantUpdateDto, Restaurant>()
+            .ForMember(dest => dest.ImageData, opt => opt.Ignore())
+            .ForMember(dest => dest.ImageFileName, opt => opt.Ignore())
+            .ForMember(dest => dest.ImageContentType, opt => opt.Ignore());
+            
         CreateMap<Restaurant, RestaurantUpdateDto>();
     }
 } 

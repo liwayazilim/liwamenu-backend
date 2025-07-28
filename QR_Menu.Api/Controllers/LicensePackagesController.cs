@@ -10,7 +10,7 @@ namespace QR_Menu.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class LicensePackagesController : ControllerBase
+public class LicensePackagesController : BaseController
 {
     private readonly AdminService _adminService;
 
@@ -26,13 +26,12 @@ public class LicensePackagesController : ControllerBase
     public async Task<ActionResult<object>> GetLicensePackages(
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
-        [FromQuery] int? licenseTypeId,
         [FromQuery] int? pageNumber = null,
         [FromQuery] int? pageSize = null)
     {
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
             dataProvider: async (page, size) => await _adminService.GetLicensePackagesAsync(
-                search, isActive, licenseTypeId, page, size),
+                search, isActive, page, size),
             pageNumber,
             pageSize,
             "Lisans paketleri başarıyla alındı",
@@ -52,13 +51,7 @@ public class LicensePackagesController : ControllerBase
         return Ok(response);
     }
 
-    [HttpGet("GetActiveLicensePackages")]
-    [RequirePermission(Permissions.Licenses.View)]
-    public async Task<ActionResult<ResponsBase>> GetActiveLicensePackages()
-    {
-        var packages = await _adminService.GetActiveLicensePackagesAsync();
-        return Ok(ResponsBase.Create("Aktif lisans paketleri başarıyla alındı", "Active license packages retrieved successfully", "200", packages));
-    }
+   
 
     [HttpGet("GetLicensePackageById")]
     [RequirePermission(Permissions.Licenses.View)]
@@ -71,12 +64,16 @@ public class LicensePackagesController : ControllerBase
         return Ok(ResponsBase.Create("Lisans paketi detayları başarıyla alındı", "License package details retrieved successfully", "200", package));
     }
 
-    [HttpPost("CreateLicensePackage")]
+    [HttpPost("AddLicensePackages")]
     [RequirePermission(Permissions.Licenses.Create)]
-    public async Task<ActionResult<ResponsBase>> CreateLicensePackage([FromBody] AdminLicensePackageCreateDto dto)
+    public async Task<ActionResult<ResponsBase>> AddLicensePackages([FromBody] AdminLicensePackageCreateDto dto)
     {
-        var package = await _adminService.CreateLicensePackageAsync(dto);
-        return Ok(ResponsBase.Create("Lisans paketi başarıyla oluşturuldu", "License package created successfully", "201", package));
+        var (package, errorMessage) = await _adminService.CreateLicensePackageAsync(dto);
+        if(package == null)
+        {
+            return BadRequest(errorMessage ?? "Geçersiz istek", "Invalid request");
+        }
+        return Success(package, "Lisans paketi başarıyla oluşturuldu", "License package created successfully");
     }
 
     [HttpPut("UpdateLicensePackage")]
@@ -101,25 +98,5 @@ public class LicensePackagesController : ControllerBase
         return Ok(ResponsBase.Create("Lisans paketi başarıyla silindi", "License package deleted successfully", "200"));
     }
 
-    [HttpPut("bulk-status")]
-    [RequirePermission(Permissions.Licenses.BulkOperations)]
-    public async Task<ActionResult<ResponsBase>> BulkUpdateLicensePackageStatus([FromBody] BulkStatusUpdateDto dto)
-    {
-        var successCount = 0;
-        foreach (var packageId in dto.Ids)
-        {
-            var updateDto = new AdminLicensePackageUpdateDto { IsActive = dto.IsActive };
-            var success = await _adminService.UpdateLicensePackageAsync(packageId, updateDto);
-            if (success) successCount++;
-        }
-        
-        var data = new
-        {
-            message = $"{successCount} lisans paketi başarıyla güncellendi",
-            successCount,
-            totalRequested = dto.Ids.Count
-        };
-        
-        return Ok(ResponsBase.Create("Toplu güncelleme tamamlandı", "Bulk update completed", "200", data));
-    }
+  
 } 

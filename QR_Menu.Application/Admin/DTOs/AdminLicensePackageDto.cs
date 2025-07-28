@@ -3,9 +3,11 @@ namespace QR_Menu.Application.Admin.DTOs;
 public class AdminLicensePackageDto
 {
     public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
     public Guid EntityGuid { get; set; }
-    public int LicenseTypeId { get; set; }
     public int Time { get; set; }
+    public int TimeId { get; set; } // 0 = month, 1 = year
+    public string TimeUnit => TimeId == 0 ? "Month" : "Year";
     public double UserPrice { get; set; }
     public double DealerPrice { get; set; }
     public string? Description { get; set; }
