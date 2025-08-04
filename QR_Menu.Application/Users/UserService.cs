@@ -104,6 +104,28 @@ public class UserService
         return (true, "Password reset link or code sent to your email.");
     }
 
+    public async Task<(bool Success, string Message)> ResendEmailVerificationAsync(string email)
+    {
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null)
+            return (false, "User not found");
+            
+        if (user.EmailConfirmed)
+            return (false, "Email is already verified");
+            
+        try
+        {
+            // Generate a new email confirmation token
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            await _emailService.SendVerificationEmailAsync(user.Email, token);
+            return (true, "Email verification link sent successfully. Please check your email.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Failed to send verification email: {ex.Message}");
+        }
+    }
+
     public async Task<(bool Success, string Message)> ResetPasswordAsync(string emailOrPhone, string code, string newPassword)
     {
         var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.PhoneNumber == emailOrPhone);

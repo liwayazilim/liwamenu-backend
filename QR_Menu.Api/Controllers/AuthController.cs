@@ -92,15 +92,6 @@ public class AuthController : BaseController
         return Ok(ResponsBase.Create("E-posta başarıyla doğrulandı", "Email verified successfully", "200"));
     }
 
-    [HttpPost("reset-password")]
-    [AllowAnonymous]
-    public async Task<ActionResult<ResponsBase>> ResetPassword([FromBody] ResetPasswordDto dto)
-    {
-        var (success, message) = await _userService.ResetPasswordAsync(dto.EmailOrPhone, dto.Code, dto.NewPassword);
-        if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
-        return Ok(ResponsBase.Create("Şifre başarıyla sıfırlandı", "Password reset successfully", "200"));
-    }
-
     private async Task<string> GenerateJwtTokenAsync(User user, IList<string> userRoles)
     {
         // Generate JWT with comprehensive claims using Identity's token providers
