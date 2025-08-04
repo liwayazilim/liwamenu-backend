@@ -23,6 +23,8 @@
 Thumbs.db
 
 # Environment files
+appsettings.*.json
+!appsettings.json   
 .env
 
 # Documentation files
