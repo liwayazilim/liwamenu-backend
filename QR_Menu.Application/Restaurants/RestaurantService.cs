@@ -70,6 +70,12 @@ public class RestaurantService
             return (null, "Geçersiz istek. Tüm gerekli alanlar doldurulmalıdır.");
         }
 
+        // Validate coordinates
+        if (dto.Latitude == 0 && dto.Longitude == 0)
+        {
+            return (null, "Geçersiz koordinatlar. Lütfen geçerli bir konum seçin.");
+        }
+
         // Check if user exists
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null)
@@ -184,13 +190,31 @@ public class RestaurantService
         return (true, null);
     }
 
-    public async Task<bool> UpdateAsync(Guid id, RestaurantUpdateDto dto, string webRootPath)
+    public async Task<(RestaurantReadDto? Restaurant, string? ErrorMessage)> UpdateAsync(Guid id, RestaurantUpdateDto dto, string webRootPath)
     {
-        var entity = await _context.Restaurants.FindAsync(id);
-        if (entity == null) return false;
+        var entity = await _context.Restaurants.FindAsync(dto.RestaurantId);
+        if (entity == null) return (null, "Restoran bulunamadı.");
         
-        // Update basic properties
-        _mapper.Map(dto, entity);
+        // Update only the fields provided in the DTO (preserve existing values for other fields)
+        if (!string.IsNullOrWhiteSpace(dto.Name))
+            entity.Name = dto.Name;
+        if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            entity.PhoneNumber = dto.PhoneNumber;
+        if (!string.IsNullOrWhiteSpace(dto.City))
+            entity.City = dto.City;
+        if (!string.IsNullOrWhiteSpace(dto.District))
+            entity.District = dto.District;
+        if (dto.Neighbourhood != null) // Allow empty string for neighbourhood
+            entity.Neighbourhood = dto.Neighbourhood;
+        if (!string.IsNullOrWhiteSpace(dto.Address))
+            entity.Address = dto.Address;
+        
+        // Only update coordinates if they are provided and valid
+        if (dto.Lat.HasValue && dto.Lat.Value != 0)
+            entity.Lat = dto.Lat.Value;
+        if (dto.Lng.HasValue && dto.Lng.Value != 0)
+            entity.Lng = dto.Lng.Value;
+            
         entity.LastUpdateDateTime = DateTime.UtcNow;
 
         // Process image if provided
@@ -200,7 +224,7 @@ public class RestaurantService
             {
                 if (!_imageService.IsValidImageFile(dto.Image))
                 {
-                    return false; // Invalid image file
+                    return (null, "Geçersiz resim dosyası.");
                 }
 
                 // Delete old image if exists
@@ -217,12 +241,15 @@ public class RestaurantService
             }
             catch (Exception)
             {
-                return false; // Image processing failed
+                return (null, "Resim işlenirken hata oluştu.");
             }
         }
 
         await _context.SaveChangesAsync();
-        return true;
+        
+        // Return updated restaurant data
+        var updatedRestaurant = _mapper.Map<RestaurantReadDto>(entity);
+        return (updatedRestaurant, null);
     }
 
     public async Task<bool> DeleteAsync(Guid id, string webRootPath)

@@ -6,6 +6,7 @@ using QR_Menu.Application.Users.DTOs;
 using QR_Menu.Domain;
 using QR_Menu.Infrastructure;
 using QR_Menu.Domain.Common.Interfaces;
+using QR_Menu.Domain.Common;
 using AutoMapper;
 
 namespace QR_Menu.Application.Users;
@@ -46,7 +47,7 @@ public class UserService
             PhoneNumber = dto.PhoneNumber,
             City = dto.City,
             District = dto.District,
-            Role = UserRole.Customer,
+            Role = UserRole.Owner, // Default to Owner role
             IsActive = true
         };
         var result = await _userManager.CreateAsync(user, dto.Password);
@@ -57,7 +58,9 @@ public class UserService
         }
         try
         {
-            await _userManager.AddToRoleAsync(user, UserRole.Customer.ToString());
+            await _userManager.AddToRoleAsync(user, Roles.Owner);
+            
+            // Use Identity's token providers for email confirmation
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             await _emailService.SendVerificationEmailAsync(user.Email, token);
         }
@@ -77,12 +80,15 @@ public class UserService
         {
             return (false, "User not found");
         }
-        var result = await _userManager.ConfirmEmailAsync(user, dto.VerificationCode);
+        
+        // Use Identity's ConfirmEmailAsync with the actual token
+        var result = await _userManager.ConfirmEmailAsync(user, dto.Token);
         if (!result.Succeeded)
         {
             var msg = string.Join(", ", result.Errors.Select(e => e.Description));
             return (false, msg);
         }
+        
         return (true, "Email verified successfully");
     }
 
@@ -91,6 +97,8 @@ public class UserService
         var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.PhoneNumber == emailOrPhone);
         if (user == null)
             return (false, "User not found");
+            
+        // Use Identity's token providers for password reset
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         await _emailService.SendPasswordResetEmailAsync(user.Email, token);
         return (true, "Password reset link or code sent to your email.");
@@ -212,7 +220,7 @@ public class UserService
             Note = dto.Note,
             SendSMSNotify = dto.SendSMSNotify,
             SendEmailNotify = dto.SendEmailNotify,
-            Role = Enum.TryParse<UserRole>(dto.Role, out var role) ? role : UserRole.Customer,
+            Role = Enum.TryParse<UserRole>(dto.Role, out var role) ? role : UserRole.Owner,
             IsActive = dto.IsActive,
             IsDealer = dto.IsDealer,
             EmailConfirmed = true // Admin/Dealer created users are verified by default

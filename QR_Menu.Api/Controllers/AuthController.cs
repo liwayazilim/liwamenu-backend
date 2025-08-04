@@ -14,7 +14,7 @@ namespace QR_Menu.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController : BaseController
 {
     private readonly UserService _userService;
     private readonly IConfiguration _config;
@@ -49,40 +49,8 @@ public class AuthController : ControllerBase
         var identityUser = await userManager.FindByIdAsync(user.Id.ToString());
         var userRoles = await userManager.GetRolesAsync(identityUser!);
 
-        // Generate JWT with comprehensive claims
-        var claims = new List<Claim>
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.FullName),
-            new Claim("firstName", user.FirstName),
-            new Claim("lastName", user.LastName),
-            new Claim("isActive", user.IsActive.ToString().ToLower()),
-            new Claim("emailConfirmed", user.EmailConfirmed.ToString().ToLower()),
-            new Claim("isDealer", user.IsDealer.ToString().ToLower())
-        };
-
-        // Add all user roles to claims
-        foreach (var role in userRoles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
-        }
-
-        // Add legacy role for backward compatibility
-        claims.Add(new Claim("legacyRole", user.Role.ToString()));
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(8), // Shorter token lifetime for better security
-            signingCredentials: creds
-        );
-        var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+        // Generate JWT using Identity's token providers
+        var jwt = await GenerateJwtTokenAsync(user, userRoles);
         
         return Ok(new { 
             token = jwt, 
@@ -133,14 +101,9 @@ public class AuthController : ControllerBase
         return Ok(ResponsBase.Create("Şifre başarıyla sıfırlandı", "Password reset successfully", "200"));
     }
 
-    private string GenerateJwtToken(User user)
+    private async Task<string> GenerateJwtTokenAsync(User user, IList<string> userRoles)
     {
-        // Get user manager for role information
-        var userManager = HttpContext.RequestServices.GetRequiredService<UserManager<User>>();
-        var identityUser = userManager.FindByIdAsync(user.Id.ToString()).Result;
-        var userRoles = userManager.GetRolesAsync(identityUser!).Result;
-
-        // Generate JWT with comprehensive claims
+        // Generate JWT with comprehensive claims using Identity's token providers
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -164,13 +127,14 @@ public class AuthController : ControllerBase
         // Add legacy role for backward compatibility
         claims.Add(new Claim("legacyRole", user.Role.ToString()));
 
+        // Use Identity's token providers for better security
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8), // Shorter token lifetime for better security
+            expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: creds
         );
         return new JwtSecurityTokenHandler().WriteToken(token);

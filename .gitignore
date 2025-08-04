@@ -27,3 +27,6 @@ Thumbs.db
 
 # Documentation files
 *.md
+
+# Ignore uploaded restaurant images
+wwwroot/images/restaurants/*

@@ -206,60 +206,28 @@ public class RestaurantsController : BaseController
     }
 
 
-    [HttpPut("UpdateRestaurantById")]
-    [RequirePermission(Permissions.Restaurants.Update)]
-    public async Task<ActionResult<ResponsBase>> UpdateRestaurant(Guid id, [FromForm] RestaurantUpdateDto dto)
-    {
-        var success = await _restaurantService.UpdateAsync(id, dto, _environment.WebRootPath);
-        if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
-        return Success("Restoran başarıyla güncellendi", "Restaurant updated successfully");
-    }
-
     [HttpPut("UpdateRestaurant")]
     [RequirePermission(Permissions.Restaurants.Update)]
-    public async Task<ActionResult<ResponsBase>> UpdateRestaurantWithDealer(
-        [FromBody] AdminRestaurantUpdateDto request, 
-        Guid restaurantId, 
-        Guid? userId = null)
+    public async Task<ActionResult<ResponsBase>> UpdateRestaurant([FromForm] RestaurantUpdateDto dto)
     {
-        // If userId is not provided, get it from the authenticated user
-        if (!userId.HasValue)
-        {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-            if (userIdStr == null || !Guid.TryParse(userIdStr, out var authenticatedUserId))
-                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
-            userId = authenticatedUserId;
-        }
-
-        var (success, errorMessage) = await _adminService.UpdateRestaurantWithDealerAsync(request, restaurantId, userId.Value);
+        var (restaurant, errorMessage) = await _restaurantService.UpdateAsync(dto.RestaurantId, dto, _environment.WebRootPath);
         
-        if (!success)
+        if (restaurant == null)
         {
             if (errorMessage == "Restoran bulunamadı.")
                 return NotFound("Restoran bulunamadı.", "Restaurant not found.");
-            else if (errorMessage == "Kullanıcı bulunamadı.")
-                return NotFound("Kullanıcı bulunamadı.", "User not found.");
-            else if (errorMessage == "Bayi bulunamadı.")
-                return NotFound("Bayi bulunamadı.", "Dealer not found.");
+            else if (errorMessage == "Geçersiz resim dosyası.")
+                return BadRequest("Geçersiz resim dosyası.", "Invalid image file.");
+            else if (errorMessage == "Resim işlenirken hata oluştu.")
+                return BadRequest("Resim işlenirken hata oluştu.", "Error occurred while processing image.");
             else
                 return BadRequest(errorMessage ?? "Restoran güncellenirken hata oluştu.", "Error occurred while updating restaurant.");
         }
-
-        return Success("Restoran güncellendi.", "Restaurant updated.");
+        
+        return Success(restaurant, "Restoran başarıyla güncellendi", "Restaurant updated successfully");
     }
 
-    [HttpPut("UpdateMyRestaurantById")]
-    [RequirePermission(Permissions.Restaurants.UpdateOwn)]
-    public async Task<ActionResult<ResponsBase>> UpdateMyRestaurant(Guid id, [FromForm] RestaurantUpdateDto dto)
-    {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
-            return Unauthorized("Geçersiz kullanıcı", "Invalid user");
-
-        var success = await _restaurantService.UpdateAsync(id, dto, _environment.WebRootPath);
-        if (!success) return NotFound("Restoran bulunamadı", "Restaurant not found");
-        return Success("Restoranınız başarıyla güncellendi", "Your restaurant updated successfully");
-    }
+   
 
     [HttpDelete("DeleteRestaurantById")]
     [RequirePermission(Permissions.Restaurants.Delete)]
@@ -303,22 +271,5 @@ public class RestaurantsController : BaseController
 
 
 
-    [HttpPut("bulk-status")]
-    [RequirePermission(Permissions.Restaurants.BulkOperations)]
-    public async Task<ActionResult<ResponsBase>> BulkUpdateRestaurantStatus([FromBody] BulkStatusUpdateDto dto)
-    {
-        var successCount = 0;
-        foreach (var restaurantId in dto.Ids)
-        {
-            var updateDto = new RestaurantUpdateDto { IsActive = dto.IsActive ?? true };
-            var success = await _restaurantService.UpdateAsync(restaurantId, updateDto, _environment.WebRootPath);
-            if (success) successCount++;
-        }
-        var data = new {
-            message = $"{successCount} restoran başarıyla güncellendi",
-            successCount,
-            totalRequested = dto.Ids.Count
-        };
-        return Success(data, "Toplu güncelleme tamamlandı", "Bulk update completed");
-    }
+
 } 

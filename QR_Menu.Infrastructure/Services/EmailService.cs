@@ -35,7 +35,7 @@ public class EmailService : IEmailService
     {
         var subject = "Email Verification";
         var intro = "Thank you for registering with QR_Menu! Please click the link below to verify your email.";
-        var verificationLink = $"https://your-frontend-url/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        var verificationLink = $"http://localhost:9006/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
         string htmlBody = $@"<html><body><p>Hello,</p><p>{intro}</p><p><a href='{verificationLink}'>Verify your email</a></p><p>If you did not request this, you can ignore this email.</p><p>Best regards,<br/>The QR_Menu Team</p></body></html>";
         await SendEmailAsync(email, subject, htmlBody);
     }
@@ -44,7 +44,7 @@ public class EmailService : IEmailService
     {
         var subject = "Password Reset";
         var intro = "You requested a password reset for QR_Menu. Please click the link below to reset your password.";
-        var resetLink = $"https://your-frontend-url/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        var resetLink = $"http://localhost:9006/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
         string htmlBody = $@"<html><body><p>Hello,</p><p>{intro}</p><p><a href='{resetLink}'>Reset your password</a></p><p>If you did not request this, you can ignore this email.</p><p>Best regards,<br/>The QR_Menu Team</p></body></html>";
         await SendEmailAsync(email, subject, htmlBody);
     }

@@ -17,6 +17,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
     public DbSet<Product> Products { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<PaymentMethod> PaymentMethods { get; set; }
+    public DbSet<Payment> Payments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -80,5 +81,29 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             .HasMany<PaymentMethod>("PaymentMethods")
             .WithMany("Restaurants")
             .UsingEntity(j => j.ToTable("RestaurantPaymentMethods"));
+
+        // Payment relationships
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Restaurant)
+            .WithMany()
+            .HasForeignKey(p => p.RestaurantId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.Order)
+            .WithMany()
+            .HasForeignKey(p => p.OrderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Ensure OrderNumber is unique
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.OrderNumber)
+            .IsUnique();
     }
 } 

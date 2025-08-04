@@ -3,12 +3,14 @@ using QR_Menu.Infrastructure;
 using QR_Menu.Application.Restaurants;
 using QR_Menu.Application.Users;
 using QR_Menu.Application.Admin;
+using QR_Menu.Application.Payments;
 using QR_Menu.Domain.Common.Interfaces;
 using QR_Menu.Infrastructure.Services;
 using QR_Menu.Infrastructure.Authorization;
 using QR_Menu.Infrastructure.Seeding;
 using QR_Menu.Domain.Common;
 using QR_Menu.Application.Common;
+using QR_Menu.PayTRService;
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -75,7 +77,7 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddAutoMapper(typeof(RestaurantProfile).Assembly, typeof(UserProfile).Assembly);
+builder.Services.AddAutoMapper(typeof(RestaurantProfile).Assembly, typeof(UserProfile).Assembly, typeof(PaymentProfile).Assembly);
 
 // Register services
 builder.Services.AddScoped<RestaurantService>();
@@ -84,6 +86,12 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<IImageService, QR_Menu.Application.Common.ImageService>();
+
+// Payment Services
+builder.Services.AddScoped<PaymentService>();
+
+// PayTR Services
+builder.Services.AddPayTRServices(builder.Configuration);
 
 // Identity
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options => 
@@ -139,7 +147,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:9006", "https://localhost:3001")
+        policy.WithOrigins("http://localhost:3000", "http://localhost:9006", "https://localhost:3001", "http://localhost:8080")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

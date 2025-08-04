@@ -25,6 +25,7 @@
     <ProjectReference Include="..\QR_Menu.Application\QR_Menu.Application.csproj" />
     <ProjectReference Include="..\QR_Menu.Domain\QR_Menu.Domain.csproj" />
     <ProjectReference Include="..\QR_Menu.Infrastructure\QR_Menu.Infrastructure.csproj" />
+    <ProjectReference Include="..\QR_Menu.PayTRService\QR_Menu.PayTRService.csproj" />
   </ItemGroup>
 
 </Project>

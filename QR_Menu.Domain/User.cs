@@ -4,10 +4,9 @@ namespace QR_Menu.Domain;
 
 public enum UserRole
 {
-    Manager, // Now the super admin role
+    Manager, // Super admin role
     Dealer,
-    Owner,
-    Customer
+    Owner
 }
 
 public class User : IdentityUser<Guid>

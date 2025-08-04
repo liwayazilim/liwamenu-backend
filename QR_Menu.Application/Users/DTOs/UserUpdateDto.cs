@@ -6,7 +6,7 @@ public class UserUpdateDto
     public string? LastName { get; set; }
     public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
-    public string? Role { get; set; } // Admin, Dealer, Owner, Customer
+    public string? Role { get; set; } // Manager, Dealer, Owner
     public bool? IsActive { get; set; }
     public bool? IsDealer { get; set; }
     public string? City { get; set; }

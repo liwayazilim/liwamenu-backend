@@ -4,10 +4,9 @@ namespace QR_Menu.Domain.Common;
 public static class Roles
 {
     // Core System Roles
-    public const string Manager = "Manager"; // Now the super admin role
+    public const string Manager = "Manager"; // Super admin role
     public const string Owner = "Owner";
     public const string Dealer = "Dealer";
-    public const string Customer = "Customer";
 
    
     // Get all permissions for a specific role
@@ -17,10 +16,9 @@ public static class Roles
     {
         return role switch
         {
-            Manager => GetManagerPermissions(), // Manager now has all permissions
+            Manager => GetManagerPermissions(), // Manager has all permissions
             Owner => GetOwnerPermissions(),
             Dealer => GetDealerPermissions(),
-            Customer => GetCustomerPermissions(),
             _ => Array.Empty<string>()
         };
     }
@@ -30,7 +28,7 @@ public static class Roles
     /// </summary>
     private static string[] GetManagerPermissions()
     {
-        return Permissions.GetAllPermissions(); // All permissions - Manager is now Super Admin
+        return Permissions.GetAllPermissions(); // All permissions - Manager is Super Admin
     }
 
     /// <summary>
@@ -55,11 +53,10 @@ public static class Roles
             Permissions.Orders.ViewOwn,
             Permissions.Orders.Update,
             Permissions.Orders.ManageStatus,
+            Permissions.Orders.Create, // Owners can create orders for their restaurants
 
             // Own Financial Data
             Permissions.Finance.ViewOwnFinancials,
-
-
 
             // Own License Viewing
             Permissions.Licenses.ViewOwn
@@ -91,11 +88,10 @@ public static class Roles
             Permissions.Licenses.Activate,
             Permissions.Licenses.Deactivate,
 
-
-
             // Order Management (licensed restaurants)
             Permissions.Orders.View,
             Permissions.Orders.ViewFinancials,
+            Permissions.Orders.Create,
 
             // Menu Management (licensed restaurants)
             Permissions.Menu.View,
@@ -108,25 +104,6 @@ public static class Roles
     }
 
     /// <summary>
-    /// Customer: Can only place orders and view public data
-    /// </summary>
-    private static string[] GetCustomerPermissions()
-    {
-        return new[]
-        {
-            // Basic Restaurant Viewing
-            Permissions.Restaurants.View,
-
-            // Menu Viewing
-            Permissions.Menu.View,
-
-            // Order Management (own orders)
-            Permissions.Orders.Create,
-            Permissions.Orders.ViewOwn
-        };
-    }
-
-    /// <summary>
     /// Get all defined roles in the system
     /// </summary>
     public static string[] GetAllRoles()
@@ -135,8 +112,7 @@ public static class Roles
         {
             Manager,
             Owner,
-            Dealer,
-            Customer
+            Dealer
         };
     }
 
@@ -156,10 +132,9 @@ public static class Roles
     {
         return role switch
         {
-            Manager => 0, // Manager is now Super Admin
+            Manager => 0, // Manager is Super Admin
             Dealer => 1,
             Owner => 2,
-            Customer => 3,
             _ => 999
         };
     }

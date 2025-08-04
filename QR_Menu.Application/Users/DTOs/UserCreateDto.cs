@@ -7,7 +7,7 @@ public class UserCreateDto
     public string Email { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty; // Manager, Dealer, Owner, Customer
+    public string Role { get; set; } = string.Empty; // Manager, Dealer, Owner
     public bool IsActive { get; set; } = true;
     public bool IsDealer { get; set; } = false;
     public string? City { get; set; }
