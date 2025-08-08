@@ -1,229 +1,133 @@
-using QR_Menu.PayTRService.Models;
-using Microsoft.Extensions.Logging;
+﻿using QR_Menu.PayTRService.Models;
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
-using System.Reflection;
 
 namespace QR_Menu.PayTRService.Services
 {
     public class PayTRAPIClient
     {
-        private readonly HttpClient _httpClient;
-        private readonly ILogger<PayTRAPIClient> _logger;
+        private HttpClient _httpClient = new HttpClient();
 
-        public PayTRAPIClient(HttpClient httpClient, ILogger<PayTRAPIClient> logger)
+        public PayTRAPIClient()
         {
-            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            
-            // Configure default headers
-            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Clear(); // Header'ları temizleyin
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "QR-Menu-PayTR-Client/1.0");
         }
 
-        public async Task<(TResponse?, HttpStatusCode, string? ErrorMessage)> SendRequestAsync<TRequest, TResponse>(
+        public async Task<(TResponse, HttpStatusCode)> SendRequest<TRequest, TResponse>(
             HttpMethod method,
             string url,
             TRequest requestData,
-            CancellationToken cancellationToken = default)
+            string token = "")
         {
             try
             {
-                // Log request without sensitive data
-                LogSecureRequest(method, url, requestData);
+                Console.WriteLine($"[PayTR]: URL: {url}, Method: {method.Method}");
 
-                using var request = new HttpRequestMessage(method, url);
-                
-                // Build form content based on request type
-                var formData = BuildFormData(requestData);
-                if (formData.Any())
+                // JSON verisini serileştir
+                string jsonData = JsonSerializer.Serialize(requestData);
+                var request = new HttpRequestMessage(method, url);
+
+                if (string.IsNullOrEmpty(token) && requestData != null)
                 {
-                    request.Content = new FormUrlEncodedContent(formData);
-                }
-
-                using var response = await _httpClient.SendAsync(request, cancellationToken);
-                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("PayTR API Error: Status {StatusCode}, Reason: {ReasonPhrase}",
-                        response.StatusCode, response.ReasonPhrase);
-                    
-                    return (default(TResponse), response.StatusCode, $"API Error: {response.StatusCode} - {response.ReasonPhrase}");
-                }
-
-                // Log success without sensitive response data
-                _logger.LogDebug("PayTR API request successful for {Method} {Url}", method.Method, url);
-
-                // Handle string responses
-                if (typeof(TResponse) == typeof(string))
-                {
-                    return ((TResponse)(object)responseContent, response.StatusCode, null);
-                }
-
-                // Deserialize JSON response
-                try
-                {
-                    var deserializedResponse = JsonSerializer.Deserialize<TResponse>(responseContent, new JsonSerializerOptions
+                    // Eğer requestData PayTRPaymentDTO ise işleme al
+                    if (requestData is PayTRDirectAPIPaymentDTO payTRDirectAPIPaymentDto)
                     {
-                        PropertyNameCaseInsensitive = true,
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                    });
-                    
-                    return (deserializedResponse, response.StatusCode, null);
+                        var formData = new Dictionary<string, string>
+                        {
+                            { "merchant_id", payTRDirectAPIPaymentDto.merchant_id.ToString() },
+                            { "paytr_token", payTRDirectAPIPaymentDto.paytr_token },
+                            { "user_ip", payTRDirectAPIPaymentDto.user_ip },
+                            { "merchant_oid", payTRDirectAPIPaymentDto.merchant_oid },
+                            { "email", payTRDirectAPIPaymentDto.email },
+                            { "payment_type", payTRDirectAPIPaymentDto.payment_type },
+                            { "payment_amount", string.Format(CultureInfo.InvariantCulture, "{0:F2}", payTRDirectAPIPaymentDto.payment_amount) },
+                            { "installment_count", payTRDirectAPIPaymentDto.installment_count.ToString() },
+                            { "card_type", payTRDirectAPIPaymentDto.card_type },
+                            { "currency", payTRDirectAPIPaymentDto.currency },
+                            { "client_lang", payTRDirectAPIPaymentDto.client_lang },
+                            { "test_mode", payTRDirectAPIPaymentDto.test_mode },
+                            { "non_3d", payTRDirectAPIPaymentDto.non_3d },
+                            { "non3d_test_failed", payTRDirectAPIPaymentDto.non3d_test_failed },
+                            { "cc_owner", payTRDirectAPIPaymentDto.cc_owner },
+                            { "card_number", payTRDirectAPIPaymentDto.card_number },
+                            { "expiry_month", payTRDirectAPIPaymentDto.expiry_month },
+                            { "expiry_year", payTRDirectAPIPaymentDto.expiry_year },
+                            { "cvv", payTRDirectAPIPaymentDto.cvv },
+                            { "merchant_ok_url", payTRDirectAPIPaymentDto.merchant_ok_url },
+                            { "merchant_fail_url", payTRDirectAPIPaymentDto.merchant_fail_url },
+                            { "user_name", payTRDirectAPIPaymentDto.user_name },
+                            { "user_address", payTRDirectAPIPaymentDto.user_address },
+                            { "user_phone", payTRDirectAPIPaymentDto.user_phone },
+                            { "user_basket", payTRDirectAPIPaymentDto.user_basket },
+                            { "debug_on", payTRDirectAPIPaymentDto.debug_on.ToString() },
+                            { "sync_mode", payTRDirectAPIPaymentDto.sync_mode.ToString() }
+                        };
+
+                        request.Content = new FormUrlEncodedContent(formData);
+                    }
+                    else if (requestData is PayTRCreateLinkAPIPaymentDTO payTRCreateLinkAPIPaymentDto)
+                    {
+                        var formData = new Dictionary<string, string>
+                        {
+                            { "merchant_id", payTRCreateLinkAPIPaymentDto.merchant_id.ToString() },
+                            { "name", payTRCreateLinkAPIPaymentDto.name },
+                            { "price", payTRCreateLinkAPIPaymentDto.price },
+                            { "currency", payTRCreateLinkAPIPaymentDto.currency },
+                            { "max_installment", payTRCreateLinkAPIPaymentDto.max_installment },
+                            { "lang", payTRCreateLinkAPIPaymentDto.lang },
+                            { "get_qr", payTRCreateLinkAPIPaymentDto.get_qr },
+                            { "link_type", payTRCreateLinkAPIPaymentDto.link_type },
+                            { "paytr_token", payTRCreateLinkAPIPaymentDto.paytr_token },
+                            { "min_count", payTRCreateLinkAPIPaymentDto.min_count },
+                            { "expiry_date", payTRCreateLinkAPIPaymentDto.expiry_date },
+                            { "callback_link", payTRCreateLinkAPIPaymentDto.callback_link },
+                            { "callback_id", payTRCreateLinkAPIPaymentDto.callback_id },
+                            { "debug_on", payTRCreateLinkAPIPaymentDto.debug_on.ToString() },
+                        };
+
+                        request.Content = new FormUrlEncodedContent(formData);
+                    }
+                    else if (requestData is PayTRDeleteLinkAPIPaymentDTO payTRDeleteLinkAPIPaymentDto)
+                    {
+                        var formData = new Dictionary<string, string>
+                        {
+                            { "merchant_id", payTRDeleteLinkAPIPaymentDto.merchant_id.ToString() },
+                            { "id", payTRDeleteLinkAPIPaymentDto.id.ToString() },
+                            { "paytr_token", payTRDeleteLinkAPIPaymentDto.paytr_token },
+                            { "debug_on", payTRDeleteLinkAPIPaymentDto.debug_on.ToString() },
+                        };
+
+                        request.Content = new FormUrlEncodedContent(formData);
+                    }
                 }
-                catch (JsonException jsonEx)
+
+                // İsteği gönder ve yanıtı al
+                var response = await _httpClient.SendAsync(request);
+                string responseContent = await response.Content.ReadAsStringAsync();
+
+                // Yanıt durumunu kontrol et ve logla
+                if (!response.IsSuccessStatusCode)
+                    Console.WriteLine($"[PayTR]: Request failed. Status Code: {response.StatusCode}, Reason: {response.ReasonPhrase}, Content: {responseContent}");
+                else
+                    Console.WriteLine($"[PayTR]: Request made successfully. Content: {responseContent}");
+
+                if (typeof(TResponse) == typeof(string))
+                    return ((TResponse)(object)responseContent, response.StatusCode);
+
+                // Yanıt verisi JSON'dan dönüştürülerek döndürülüyor
+                var options = new JsonSerializerOptions
                 {
-                    _logger.LogError(jsonEx, "Failed to deserialize PayTR response");
-                    return (default(TResponse), response.StatusCode, "Failed to deserialize response");
-                }
+                    PropertyNameCaseInsensitive = true
+                };
+                return (JsonSerializer.Deserialize<TResponse>(responseContent, options), response.StatusCode);
             }
-            catch (HttpRequestException httpEx)
+            catch (Exception exception)
             {
-                _logger.LogError(httpEx, "HTTP request failed for PayTR API: {Method} {Url}", method.Method, url);
-                return (default(TResponse), HttpStatusCode.RequestTimeout, $"HTTP Error: {httpEx.Message}");
+                Console.WriteLine($"[PayTR]: Error occurred: {exception}");
+                return (default(TResponse), HttpStatusCode.InternalServerError);
             }
-            catch (TaskCanceledException tcEx) when (tcEx.InnerException is TimeoutException)
-            {
-                _logger.LogError(tcEx, "PayTR API request timeout: {Method} {Url}", method.Method, url);
-                return (default(TResponse), HttpStatusCode.RequestTimeout, "Request timeout");
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogWarning("PayTR API request cancelled: {Method} {Url}", method.Method, url);
-                return (default(TResponse), HttpStatusCode.RequestTimeout, "Request cancelled");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in PayTR API request: {Method} {Url}", method.Method, url);
-                return (default(TResponse), HttpStatusCode.InternalServerError, $"Unexpected error: {ex.Message}");
-            }
-        }
-
-        private void LogSecureRequest<TRequest>(HttpMethod method, string url, TRequest requestData)
-        {
-            if (requestData == null)
-            {
-                _logger.LogInformation("PayTR API Request: {Method} {Url} (no data)", method.Method, url);
-                return;
-            }
-
-            // Log request details without sensitive information
-            var requestInfo = requestData switch
-            {
-                PayTRDirectAPIPaymentDTO direct => $"Direct Payment - Amount: {direct.payment_amount}, Merchant: {direct.merchant_id}",
-                PayTRCreateLinkAPIPaymentDTO createLink => $"Create Link - Name: {createLink.name}, Price: {createLink.price}",
-                PayTRDeleteLinkAPIPaymentDTO deleteLink => $"Delete Link - ID: {deleteLink.id}",
-                _ => "Unknown request type"
-            };
-
-            _logger.LogInformation("PayTR API Request: {Method} {Url} - {RequestInfo}", method.Method, url, requestInfo);
-        }
-
-        private Dictionary<string, string> BuildFormData<TRequest>(TRequest requestData)
-        {
-            var formData = new Dictionary<string, string>();
-
-            if (requestData == null)
-                return formData;
-
-            return requestData switch
-            {
-                PayTRDirectAPIPaymentDTO direct => BuildDirectPaymentFormData(direct),
-                PayTRCreateLinkAPIPaymentDTO createLink => BuildCreateLinkFormData(createLink),
-                PayTRDeleteLinkAPIPaymentDTO deleteLink => BuildDeleteLinkFormData(deleteLink),
-                _ => BuildGenericFormData(requestData)
-            };
-        }
-
-        private Dictionary<string, string> BuildDirectPaymentFormData(PayTRDirectAPIPaymentDTO dto)
-        {
-            return new Dictionary<string, string>
-            {
-                ["merchant_id"] = dto.merchant_id.ToString(),
-                ["paytr_token"] = dto.paytr_token ?? string.Empty,
-                ["user_ip"] = dto.user_ip ?? string.Empty,
-                ["merchant_oid"] = dto.merchant_oid ?? string.Empty,
-                ["email"] = dto.email ?? string.Empty,
-                ["payment_type"] = dto.payment_type ?? "card",
-                ["payment_amount"] = dto.payment_amount?.ToString("F2", CultureInfo.InvariantCulture) ?? "0",
-                ["installment_count"] = dto.installment_count?.ToString() ?? "0",
-                ["card_type"] = dto.card_type ?? string.Empty,
-                ["currency"] = dto.currency ?? "TL",
-                ["client_lang"] = dto.client_lang ?? "tr",
-                ["test_mode"] = dto.test_mode ?? "0",
-                ["non_3d"] = dto.non_3d ?? "0",
-                ["non3d_test_failed"] = dto.non3d_test_failed ?? "1",
-                ["cc_owner"] = dto.cc_owner ?? string.Empty,
-                ["card_number"] = dto.card_number ?? string.Empty,
-                ["expiry_month"] = dto.expiry_month ?? string.Empty,
-                ["expiry_year"] = dto.expiry_year ?? string.Empty,
-                ["cvv"] = dto.cvv ?? string.Empty,
-                ["merchant_ok_url"] = dto.merchant_ok_url ?? string.Empty,
-                ["merchant_fail_url"] = dto.merchant_fail_url ?? string.Empty,
-                ["user_name"] = dto.user_name ?? string.Empty,
-                ["user_address"] = dto.user_address ?? string.Empty,
-                ["user_phone"] = dto.user_phone ?? string.Empty,
-                ["user_basket"] = dto.user_basket ?? string.Empty,
-                ["debug_on"] = dto.debug_on.ToString(),
-                ["sync_mode"] = dto.sync_mode.ToString()
-            };
-        }
-
-        private Dictionary<string, string> BuildCreateLinkFormData(PayTRCreateLinkAPIPaymentDTO dto)
-        {
-            return new Dictionary<string, string>
-            {
-                ["merchant_id"] = dto.merchant_id.ToString(),
-                ["name"] = dto.name ?? string.Empty,
-                ["price"] = dto.price ?? string.Empty,
-                ["currency"] = dto.currency ?? "TL",
-                ["max_installment"] = dto.max_installment ?? "1",
-                ["lang"] = dto.lang ?? "tr",
-                ["get_qr"] = dto.get_qr ?? "0",
-                ["link_type"] = dto.link_type ?? "product",
-                ["paytr_token"] = dto.paytr_token ?? string.Empty,
-                ["min_count"] = dto.min_count ?? "0",
-                ["max_count"] = dto.max_count ?? "0",
-                ["expiry_date"] = dto.expiry_date ?? string.Empty,
-                ["callback_link"] = dto.callback_link ?? string.Empty,
-                ["callback_id"] = dto.callback_id ?? string.Empty,
-                ["debug_on"] = dto.debug_on.ToString()
-            };
-        }
-
-        private Dictionary<string, string> BuildDeleteLinkFormData(PayTRDeleteLinkAPIPaymentDTO dto)
-        {
-            return new Dictionary<string, string>
-            {
-                ["merchant_id"] = dto.merchant_id.ToString(),
-                ["id"] = dto.id.ToString(),
-                ["paytr_token"] = dto.paytr_token ?? string.Empty,
-                ["debug_on"] = dto.debug_on.ToString()
-            };
-        }
-
-        private Dictionary<string, string> BuildGenericFormData<T>(T obj)
-        {
-            var formData = new Dictionary<string, string>();
-            
-            if (obj == null)
-                return formData;
-
-            var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            
-            foreach (var property in properties)
-            {
-                var value = property.GetValue(obj);
-                if (value != null)
-                {
-                    formData[property.Name.ToLowerInvariant()] = value.ToString() ?? string.Empty;
-                }
-            }
-
-            return formData;
         }
     }
-} 
+}

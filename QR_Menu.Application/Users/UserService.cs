@@ -50,7 +50,12 @@ public class UserService
             Role = UserRole.Owner, // Default to Owner role
             IsActive = true
         };
+        // Mark as temporary until email is verified
+        user.IsTemporary = true;
+        user.CreatedDateTime = DateTime.UtcNow;
+        user.LastUpdateDateTime = DateTime.UtcNow;
         var result = await _userManager.CreateAsync(user, dto.Password);
+
         if (!result.Succeeded)
         {
             var msg = string.Join(", ", result.Errors.Select(e => e.Description));
@@ -63,6 +68,7 @@ public class UserService
             // Use Identity's token providers for email confirmation
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             await _emailService.SendVerificationEmailAsync(user.Email, token);
+            
         }
         catch (Exception ex)
         {
@@ -88,6 +94,11 @@ public class UserService
             var msg = string.Join(", ", result.Errors.Select(e => e.Description));
             return (false, msg);
         }
+        
+        // Mark user as non-temporary after successful verification
+        user.IsTemporary = false;
+        user.LastUpdateDateTime = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
         
         return (true, "Email verified successfully");
     }
@@ -131,6 +142,7 @@ public class UserService
         var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Email == emailOrPhone || u.PhoneNumber == emailOrPhone);
         if (user == null)
             return (false, "User not found");
+        // If user was temporary and resetting password, keep temporary until email confirmed
         var result = await _userManager.ResetPasswordAsync(user, code, newPassword);
         if (!result.Succeeded)
         {
@@ -162,7 +174,7 @@ public class UserService
             return (false, "User not found", null);
         if (!user.IsActive)
             return (false, "User is not active", null);
-        if (!user.EmailConfirmed)
+        if (!user.EmailConfirmed || user.IsTemporary)
             return (false, "User email is not verified", null);
         var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
         if (!result.Succeeded)

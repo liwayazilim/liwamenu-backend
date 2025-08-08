@@ -26,6 +26,10 @@ public class User : IdentityUser<Guid>
     public bool SendSMSNotify { get; set; } = true;
     public bool SendEmailNotify { get; set; } = true;
     public bool IsUseDemoLicense { get; set; } = false;
+    
+    // New: temporary user flag (true until email is verified)
+    public bool IsTemporary { get; set; } = false;
+
     public DateTime CreatedDateTime { get; set; } 
     public DateTime LastUpdateDateTime { get; set; }
     public DateTime? LastLoginAt { get; set; }

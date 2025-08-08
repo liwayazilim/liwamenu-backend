@@ -1,4 +1,4 @@
-namespace QR_Menu.PayTRService.Models
+﻿namespace QR_Menu.PayTRService.Models
 {
     public class PayTREndpoint
     {
@@ -8,4 +8,4 @@ namespace QR_Menu.PayTRService.Models
         public static string CreateLink => BaseURL + "odeme/api/link/create";
         public static string DeleteLink => BaseURL + "odeme/api/link/delete";
     }
-} 
+}

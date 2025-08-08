@@ -91,7 +91,8 @@ builder.Services.AddScoped<IImageService, QR_Menu.Application.Common.ImageServic
 builder.Services.AddScoped<PaymentService>();
 
 // PayTR Services
-builder.Services.AddPayTRServices(builder.Configuration);
+builder.Services.AddScoped<QR_Menu.PayTRService.Services.IPayTRAPIService, QR_Menu.PayTRService.Services.PayTRAPIService>();
+builder.Services.AddScoped<QR_Menu.PayTRService.Services.PayTRAPIClient>();
 
 // Identity
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options => 

@@ -1,4 +1,4 @@
-namespace QR_Menu.PayTRService.Models
+﻿namespace QR_Menu.PayTRService.Models
 {
     public class PayTRCreateLinkAPITokenDTO
     {
@@ -13,4 +13,4 @@ namespace QR_Menu.PayTRService.Models
         public string? merchant_key { get; set; }
         public string? merchant_salt { get; set; }
     }
-} 
+}

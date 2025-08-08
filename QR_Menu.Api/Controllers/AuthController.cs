@@ -7,8 +7,9 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using QR_Menu.Domain;
 using QR_Menu.Application.Common;
+using QR_Menu.Domain.Common;
+using QR_Menu.Domain;
 
 namespace QR_Menu.Api.Controllers;
 
@@ -18,11 +19,13 @@ public class AuthController : BaseController
 {
     private readonly UserService _userService;
     private readonly IConfiguration _config;
+    private readonly UserManager<User> _userManager;
 
-    public AuthController(UserService userService, IConfiguration config)
+    public AuthController(UserService userService, IConfiguration config , UserManager<User> userManager)
     {
         _userService = userService;
         _config = config;
+        _userManager = userManager;
     }
 
     [HttpPost("register")]
@@ -44,10 +47,13 @@ public class AuthController : BaseController
         if (!success || user == null)
             return BadRequest(new { message });
 
-        // Get user manager for role information
-        var userManager = HttpContext.RequestServices.GetRequiredService<UserManager<User>>();
-        var identityUser = await userManager.FindByIdAsync(user.Id.ToString());
-        var userRoles = await userManager.GetRolesAsync(identityUser!);
+        
+        var identityUser = await _userManager.FindByIdAsync(user.Id.ToString());
+        var userRoles = await _userManager.GetRolesAsync(identityUser!);
+
+        // Determine role flags
+        var isManager = userRoles.Contains(Roles.Manager) || user.Role == UserRole.Manager;
+        var isOwner = userRoles.Contains(Roles.Owner) || user.Role == UserRole.Owner;
 
         // Generate JWT using Identity's token providers
         var jwt = await GenerateJwtTokenAsync(user, userRoles);
@@ -64,8 +70,12 @@ public class AuthController : BaseController
                 user.IsActive,
                 user.EmailConfirmed,
                 user.IsDealer,
+                IsTemporary = user.IsTemporary,
+                IsManager = isManager,
+                IsOwner = isOwner,
                 Roles = userRoles.ToArray()
             },
+            redirectTo = isManager ? "/admin" : "/dashboard",
             expiresAt = DateTime.UtcNow.AddHours(8)
         });
     }
@@ -106,7 +116,10 @@ public class AuthController : BaseController
             new Claim("lastName", user.LastName),
             new Claim("isActive", user.IsActive.ToString().ToLower()),
             new Claim("emailConfirmed", user.EmailConfirmed.ToString().ToLower()),
-            new Claim("isDealer", user.IsDealer.ToString().ToLower())
+            new Claim("isDealer", user.IsDealer.ToString().ToLower()),
+            new Claim("isTemporary", user.IsTemporary.ToString().ToLower()),
+            new Claim("isManager", (user.Role == UserRole.Manager).ToString().ToLower()),
+            new Claim("isOwner", (user.Role == UserRole.Owner).ToString().ToLower())
         };
 
         // Add all user roles to claims

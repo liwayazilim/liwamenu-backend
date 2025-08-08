@@ -1,4 +1,4 @@
-namespace QR_Menu.PayTRService.Models
+﻿namespace QR_Menu.PayTRService.Models
 {
     public class PayTRCreateLinkAPIPaymentDTO
     {
@@ -14,8 +14,9 @@ namespace QR_Menu.PayTRService.Models
         public string? max_count { get; set; } = "0";
         public string? min_count { get; set; } = "0";
         public string? expiry_date { get; set; }
-        public string? callback_link { get; set; } = "https://yourdomain.com/api/Payments/callback";
+        public string? callback_link { get; set; } = "https://api.pentegrasyon.net/api/v1/PayTR/Callback";
         public string? callback_id { get; set; }
+        //TODO: Canlıda burası 0 olacak.
         public int debug_on { get; set; } = 0;
     }
-} 
+}

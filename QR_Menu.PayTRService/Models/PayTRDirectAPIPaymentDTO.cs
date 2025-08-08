@@ -1,4 +1,4 @@
-namespace QR_Menu.PayTRService.Models
+﻿namespace QR_Menu.PayTRService.Models
 {
     public class PayTRDirectAPIPaymentDTO
     {
@@ -13,6 +13,7 @@ namespace QR_Menu.PayTRService.Models
         public string? card_type { get; set; }
         public string? currency { get; set; } = "TL";
         public string? client_lang { get; set; } = "tr";
+        //TODO: Canlıda burası 0 olacak.
         public string? test_mode { get; set; } = "0";
         public string? non_3d { get; set; } = "0";
         public string? non3d_test_failed { get; set; } = "1";
@@ -21,13 +22,14 @@ namespace QR_Menu.PayTRService.Models
         public string? expiry_month { get; set; }
         public string? expiry_year { get; set; }
         public string? cvv { get; set; }
-        public string? merchant_ok_url { get; set; } = "https://yourdomain.com/payment-success";
-        public string? merchant_fail_url { get; set; } = "https://yourdomain.com/payment-failure";
+        public string? merchant_ok_url { get; set; } = "https://pentegrasyon.net/payment-success";
+        public string? merchant_fail_url { get; set; } = "https://api.pentegrasyon.net/api/v1/PayTR/PaymentFailure";
         public string? user_name { get; set; }
         public string? user_address { get; set; }
         public string? user_phone { get; set; }
         public string? user_basket { get; set; }
+        //TODO: Canlıda burası 0 olacak.
         public int debug_on { get; set; } = 0;
         public int sync_mode { get; set; }
     }
-} 
+}

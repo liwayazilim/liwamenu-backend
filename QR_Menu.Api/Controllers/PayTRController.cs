@@ -8,13 +8,13 @@ using QR_Menu.Domain.Common;
 using QR_Menu.Domain;
 using QR_Menu.PayTRService.Services;
 using QR_Menu.PayTRService.Models;
+using QR_Menu.PayTRService.Helpers;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text;
 using System.Web;
 using Microsoft.EntityFrameworkCore;
 using QR_Menu.Infrastructure;
-using Microsoft.Extensions.Options;
 
 namespace QR_Menu.Api.Controllers;
 
@@ -23,26 +23,23 @@ namespace QR_Menu.Api.Controllers;
 public class PayTRController : BaseController
 {
     private readonly PaymentService _paymentService;
-    private readonly IPayTRAPIService _payTRAPIService;
-    private readonly IPayTRSecurityService _payTRSecurityService;
-    private readonly PayTRConfiguration _payTRConfig;
+    private readonly QR_Menu.PayTRService.Services.IPayTRAPIService _payTRAPIService;
     private readonly AppDbContext _context;
     private readonly ILogger<PayTRController> _logger;
+    private readonly IConfiguration _configuration;
 
     public PayTRController(
         PaymentService paymentService,
-        IPayTRAPIService payTRAPIService,
-        IPayTRSecurityService payTRSecurityService,
-        IOptions<PayTRConfiguration> payTRConfig,
+        QR_Menu.PayTRService.Services.IPayTRAPIService payTRAPIService,
         AppDbContext context,
-        ILogger<PayTRController> logger)
+        ILogger<PayTRController> logger,
+        IConfiguration configuration)
     {
         _paymentService = paymentService;
         _payTRAPIService = payTRAPIService;
-        _payTRSecurityService = payTRSecurityService;
-        _payTRConfig = payTRConfig.Value;
         _context = context;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpPost("extend-license")]
@@ -74,7 +71,7 @@ public class PayTRController : BaseController
                 return NotFound("Kullanıcı bulunamadı", "User not found");
 
             // Parse user basket
-            var userBasket = JsonSerializer.Deserialize<PayTRUserBasketForExtendLicenseDto>(request.UserBasket);
+            var userBasket = JsonSerializer.Deserialize<PayTRUserBasketForExtendLicenseDTO>(request.UserBasket);
             if (userBasket == null)
                 return BadRequest("Geçersiz sepet verisi", "Invalid basket data");
 
@@ -129,40 +126,85 @@ public class PayTRController : BaseController
             var basketJson = JsonSerializer.Serialize(basket);
 
             // Create secure PayTR payment
-            var payTRRequest = await _payTRSecurityService.CreateSecureDirectPaymentRequestAsync(
-                userIp: userIp,
-                merchantOid: orderNumber,
-                email: request.UserEmail,
-                amount: (decimal)totalAmount,
-                cardNumber: request.CardNumber,
-                expiryMonth: request.ExpiryMonth,
-                expiryYear: request.ExpiryYear,
-                cvv: request.CVV,
-                cardOwner: request.CCOwner,
-                userName: request.UserName,
-                userAddress: request.UserAddress,
-                userPhone: request.UserPhoneNumber,
-                userBasket: basketJson
-            );
+            var tokenData = new PayTRDirectAPITokenDTO
+            {
+                merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
+                merchant_key = _configuration["PayTR:MerchantKey"],
+                merchant_salt = _configuration["PayTR:MerchantSalt"],
+                user_ip = userIp,
+                merchant_oid = orderNumber,
+                email = request.UserEmail,
+                payment_amount = (double)totalAmount,
+                payment_type = "card",
+                installment_count = 0,
+                currency = "TL",
+                test_mode = bool.Parse(_configuration["PayTR:TestMode"]) ? "1" : "0",
+                non_3d = "0"
+            };
+
+            var token = TokenHasherHelper.CreatePayTRToken(tokenData);
+
+            var payTRRequest = new PayTRDirectAPIPaymentDTO
+            {
+                merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
+                paytr_token = token,
+                user_ip = userIp,
+                merchant_oid = orderNumber,
+                email = request.UserEmail,
+                payment_amount = (double)totalAmount,
+                payment_type = "card",
+                installment_count = 0,
+                currency = "TL",
+                test_mode = bool.Parse(_configuration["PayTR:TestMode"]) ? "1" : "0",
+                non_3d = "0",
+                cc_owner = request.CCOwner,
+                card_number = request.CardNumber,
+                expiry_month = request.ExpiryMonth,
+                expiry_year = request.ExpiryYear,
+                cvv = request.CVV,
+                user_name = request.UserName,
+                user_address = request.UserAddress,
+                user_phone = request.UserPhoneNumber,
+                user_basket = basketJson,
+                merchant_ok_url = _configuration["PayTR:SuccessUrl"],
+                merchant_fail_url = _configuration["PayTR:FailUrl"]
+            };
 
             // Process payment through PayTR
-            var (response, success, errorMessage) = await _payTRAPIService.PayAsync<PayTRDirectAPIPaymentDTO, string>(
-                payTRRequest, HttpContext.RequestAborted);
+            var (response, statusCode) = await _payTRAPIService.Pay<PayTRDirectAPIPaymentDTO, string>(payTRRequest);
 
-            if (!success)
-                return BadRequest($"Ödeme işlemi başarısız: {errorMessage}", $"Payment failed: {errorMessage}");
+            if (statusCode != System.Net.HttpStatusCode.OK)
+                return BadRequest($"Ödeme işlemi başarısız: HTTP {statusCode}", $"Payment failed: HTTP {statusCode}");
 
             // Create payment record
-            await _paymentService.CreatePaymentRecordForLicenseAsync(
-                targetUserId, targetUser.FullName, orderNumber, (decimal)totalAmount, 
-                basketJson, PaymentLicenseType.ExtendLicense);
+            var payment = new Payment
+            {
+                Id = Guid.NewGuid(),
+                OrderNumber = orderNumber,
+                UserId = targetUserId,
+                Amount = (decimal)totalAmount,
+                Currency = "TRY",
+                PaymentMethod = PaymentType.PayTR,
+                Status = PaymentStatus.Waiting,
+                LicenseType = PaymentLicenseType.ExtendLicense,
+                PayTRToken = token,
+                BasketItems = basketJson,
+                CustomerEmail = request.UserEmail,
+                CustomerPhone = request.UserPhoneNumber,
+                CustomerName = request.UserName,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            };
 
-            return Success(response, "Lisans uzatma ödemesi alındı", "License extension payment received");
+            _context.Payments.Add(payment);
+            await _context.SaveChangesAsync();
+
+            return Success(response, "Ödeme başarıyla alındı", "Payment received successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing license extension payment");
-            return BadRequest("Ödeme işlemi sırasında hata oluştu", "Error occurred during payment processing");
+            _logger.LogError(ex, "Error in ExtendLicenseByPay");
+            return BadRequest("Ödeme işlemi sırasında hata oluştu", "An error occurred during payment processing");
         }
     }
 
@@ -195,7 +237,7 @@ public class PayTRController : BaseController
                 return NotFound("Kullanıcı bulunamadı", "User not found");
 
             // Parse user baskets
-            var userBaskets = JsonSerializer.Deserialize<List<PayTRUserBasketForNewLicenseDto>>(request.UserBasket);
+            var userBaskets = JsonSerializer.Deserialize<List<PayTRUserBasketForNewLicenseDTO>>(request.UserBasket);
             if (userBaskets == null || !userBaskets.Any())
                 return BadRequest("Geçersiz sepet verisi", "Invalid basket data");
 
@@ -210,7 +252,8 @@ public class PayTRController : BaseController
                     continue;
 
                 var restaurant = await _context.Restaurants.FindAsync(restaurantId);
-                if (restaurant == null) continue;
+                if (restaurant == null)
+                    continue;
 
                 var basketLicenses = new List<PaymentBasketLicenseDto>();
 
@@ -220,10 +263,11 @@ public class PayTRController : BaseController
                         continue;
 
                     var licensePackage = await _context.LicensePackages.FindAsync(licensePackageId);
-                    if (licensePackage == null) continue;
+                    if (licensePackage == null)
+                        continue;
 
-                    var price = isDealer ? licensePackage.DealerPrice : licensePackage.UserPrice;
-                    totalAmount += price;
+                    var licenseAmount = isDealer ? licensePackage.DealerPrice : licensePackage.UserPrice;
+                    totalAmount += licenseAmount;
 
                     basketLicenses.Add(new PaymentBasketLicenseDto
                     {
@@ -232,20 +276,17 @@ public class PayTRController : BaseController
                         LicensePackageName = licensePackage.Name,
                         LicensePackageTypeId = licensePackage.TimeId,
                         LicensePackageTime = licensePackage.Time,
-                        LicensePackagePrice = price
+                        LicensePackagePrice = licenseAmount
                     });
                 }
 
-                if (basketLicenses.Any())
+                baskets.Add(new PaymentBasketDto
                 {
-                    baskets.Add(new PaymentBasketDto
-                    {
-                        RestaurantId = restaurantId,
-                        RestaurantName = restaurant.Name,
-                        Username = targetUser.FullName,
-                        Licenses = basketLicenses
-                    });
-                }
+                    RestaurantId = restaurantId,
+                    RestaurantName = restaurant.Name,
+                    Username = targetUser.FullName,
+                    Licenses = basketLicenses
+                });
             }
 
             if (!baskets.Any())
@@ -257,40 +298,85 @@ public class PayTRController : BaseController
             var basketsJson = JsonSerializer.Serialize(baskets);
 
             // Create secure PayTR payment
-            var payTRRequest = await _payTRSecurityService.CreateSecureDirectPaymentRequestAsync(
-                userIp: userIp,
-                merchantOid: orderNumber,
-                email: request.UserEmail,
-                amount: (decimal)totalAmount,
-                cardNumber: request.CardNumber,
-                expiryMonth: request.ExpiryMonth,
-                expiryYear: request.ExpiryYear,
-                cvv: request.CVV,
-                cardOwner: request.CCOwner,
-                userName: request.UserName,
-                userAddress: request.UserAddress,
-                userPhone: request.UserPhoneNumber,
-                userBasket: basketsJson
-            );
+            var tokenData = new PayTRDirectAPITokenDTO
+            {
+                merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
+                merchant_key = _configuration["PayTR:MerchantKey"],
+                merchant_salt = _configuration["PayTR:MerchantSalt"],
+                user_ip = userIp,
+                merchant_oid = orderNumber,
+                email = request.UserEmail,
+                payment_amount = totalAmount,
+                payment_type = "card",
+                installment_count = 0,
+                currency = "TL",
+                test_mode = bool.Parse(_configuration["PayTR:TestMode"]) ? "1" : "0",
+                non_3d = "0"
+            };
+
+            var token = TokenHasherHelper.CreatePayTRToken(tokenData);
+
+            var payTRRequest = new PayTRDirectAPIPaymentDTO
+            {
+                merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
+                paytr_token = token,
+                user_ip = userIp,
+                merchant_oid = orderNumber,
+                email = request.UserEmail,
+                payment_amount = totalAmount,
+                payment_type = "card",
+                installment_count = 0,
+                currency = "TL",
+                test_mode = bool.Parse(_configuration["PayTR:TestMode"]) ? "1" : "0",
+                non_3d = "0",
+                cc_owner = request.CCOwner,
+                card_number = request.CardNumber,
+                expiry_month = request.ExpiryMonth,
+                expiry_year = request.ExpiryYear,
+                cvv = request.CVV,
+                user_name = request.UserName,
+                user_address = request.UserAddress,
+                user_phone = request.UserPhoneNumber,
+                user_basket = basketsJson,
+                merchant_ok_url = _configuration["PayTR:SuccessUrl"],
+                merchant_fail_url = _configuration["PayTR:FailUrl"]
+            };
 
             // Process payment through PayTR
-            var (response, success, errorMessage) = await _payTRAPIService.PayAsync<PayTRDirectAPIPaymentDTO, string>(
-                payTRRequest, HttpContext.RequestAborted);
+            var (response, statusCode) = await _payTRAPIService.Pay<PayTRDirectAPIPaymentDTO, string>(payTRRequest);
 
-            if (!success)
-                return BadRequest($"Ödeme işlemi başarısız: {errorMessage}", $"Payment failed: {errorMessage}");
+            if (statusCode != System.Net.HttpStatusCode.OK)
+                return BadRequest($"Ödeme işlemi başarısız: HTTP {statusCode}", $"Payment failed: HTTP {statusCode}");
 
             // Create payment record
-            await _paymentService.CreatePaymentRecordForLicenseAsync(
-                targetUserId, targetUser.FullName, orderNumber, (decimal)totalAmount, 
-                basketsJson, PaymentLicenseType.NewLicense);
+            var payment = new Payment
+            {
+                Id = Guid.NewGuid(),
+                OrderNumber = orderNumber,
+                UserId = targetUserId,
+                Amount = (decimal)totalAmount,
+                Currency = "TRY",
+                PaymentMethod = PaymentType.PayTR,
+                Status = PaymentStatus.Waiting,
+                LicenseType = PaymentLicenseType.NewLicense,
+                PayTRToken = token,
+                BasketItems = basketsJson,
+                CustomerEmail = request.UserEmail,
+                CustomerPhone = request.UserPhoneNumber,
+                CustomerName = request.UserName,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            };
 
-            return Success(response, "Yeni lisans ödemesi alındı", "New license payment received");
+            _context.Payments.Add(payment);
+            await _context.SaveChangesAsync();
+
+            return Success(response, "Ödeme başarıyla alındı", "Payment received successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing new license payment");
-            return BadRequest("Ödeme işlemi sırasında hata oluştu", "Error occurred during payment processing");
+            _logger.LogError(ex, "Error in AddLicenseByPay");
+            return BadRequest("Ödeme işlemi sırasında hata oluştu", "An error occurred during payment processing");
         }
     }
 
@@ -305,55 +391,77 @@ public class PayTRController : BaseController
             var orderNumber = _paymentService.GenerateOrderNumber();
             var price = ((decimal)(request.TotalPrice ?? 0) * 100).ToString("0");
 
-            var payTRRequest = await _payTRSecurityService.CreateSecureCreateLinkRequestAsync(
-                name: request.Products,
-                price: price,
-                maxInstallment: request.Installment.ToString(),
-                maxCount: request.StockQuantity.ToString(),
-                expiryDate: request.ExpiryDate,
-                callbackId: orderNumber,
-                getQr: request.CreateQR ? 1 : 0
-            );
-
-            var (response, success, errorMessage) = await _payTRAPIService.CreateLinkAsync<PayTRCreateLinkAPIPaymentDTO, PayTRCreateLinkAPIPaymentResponseDTO>(
-                payTRRequest, HttpContext.RequestAborted);
-
-            if (!success || response?.status != "success")
-                return BadRequest($"Link oluşturma başarısız: {errorMessage}", $"Link creation failed: {errorMessage}");
-
-            // Save QR code if requested
-            string qrFilePath = "";
-            if (request.CreateQR && !string.IsNullOrEmpty(response.base64_qr))
+            var tokenData = new PayTRCreateLinkAPITokenDTO
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "qr-codes");
-                Directory.CreateDirectory(uploadsFolder);
+                name = request.Products,
+                price = price,
+                currency = "TL",
+                max_installment = request.Installment.ToString(),
+                link_type = "product",
+                lang = "tr",
+                min_count = "0",
+                merchant_key = _configuration["PayTR:MerchantKey"],
+                merchant_salt = _configuration["PayTR:MerchantSalt"]
+            };
 
-                var fileName = $"{orderNumber}_{response.id}_{DateTime.UtcNow:yyyyMMddHHmmss}.png";
-                var filePath = Path.Combine(uploadsFolder, fileName);
+            var token = TokenHasherHelper.CreatePayTRToken(tokenData);
 
-                await System.IO.File.WriteAllBytesAsync(filePath, Convert.FromBase64String(response.base64_qr));
-                qrFilePath = $"/qr-codes/{fileName}";
+            var payTRRequest = new PayTRCreateLinkAPIPaymentDTO
+            {
+                merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
+                paytr_token = token,
+                name = request.Products,
+                price = price,
+                currency = "TL",
+                max_installment = request.Installment.ToString(),
+                lang = "tr",
+                get_qr = request.CreateQR ? "1" : "0",
+                link_type = "product",
+                min_count = "0",
+                max_count = request.StockQuantity.ToString(),
+                expiry_date = request.ExpiryDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                callback_link = _configuration["PayTR:CallbackUrl"],
+                callback_id = orderNumber,
+                debug_on = bool.Parse(_configuration["PayTR:DebugMode"]) ? 1 : 0
+            };
+
+            var (response, statusCode) = await _payTRAPIService.CreateLink<PayTRCreateLinkAPIPaymentDTO, PayTRCreateLinkAPIPaymentResponseDTO>(payTRRequest);
+
+            if (statusCode != System.Net.HttpStatusCode.OK)
+                return BadRequest($"Link oluşturma başarısız: HTTP {statusCode}", $"Link creation failed: HTTP {statusCode}");
+
+            if (response?.status != "success")
+            {
+                var payTRError = response?.reason ?? "PayTR link creation failed";
+                return BadRequest($"PayTR link hatası: {payTRError}", $"PayTR link error: {payTRError}");
             }
 
             // Create payment record
-            await _paymentService.CreatePaymentRecordForLicenseAsync(
-                Guid.Empty, "Link Payment", orderNumber, (decimal)(request.TotalPrice ?? 0), 
-                request.Products, PaymentLicenseType.Link);
-
-            // Include QR path in response
-            var responseData = new { 
-                response.id, 
-                response.link, 
-                response.status,
-                qr_path = qrFilePath 
+            var payment = new Payment
+            {
+                Id = Guid.NewGuid(),
+                OrderNumber = orderNumber,
+                Amount = (decimal)(request.TotalPrice ?? 0),
+                Currency = "TRY",
+                PaymentMethod = PaymentType.PayTR,
+                Status = PaymentStatus.Waiting,
+                LicenseType = PaymentLicenseType.Link,
+                PayTRPaymentLink = response.link,
+                PayTRPaymentLinkId = response.id,
+                BasketItems = request.Products,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
             };
 
-            return Success(responseData, "Ödeme linki oluşturuldu", "Payment link created");
+            _context.Payments.Add(payment);
+            await _context.SaveChangesAsync();
+
+            return Success(response, "Ödeme linki başarıyla oluşturuldu", "Payment link created successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating payment link");
-            return BadRequest("Link oluşturma sırasında hata oluştu", "Error occurred while creating link");
+            _logger.LogError(ex, "Error in CreatePaymentLink");
+            return BadRequest("Link oluşturma sırasında hata oluştu", "An error occurred during link creation");
         }
     }
 
@@ -365,20 +473,35 @@ public class PayTRController : BaseController
     {
         try
         {
-            var payTRRequest = await _payTRSecurityService.CreateSecureDeleteLinkRequestAsync(request.Id);
+            var tokenData = new PayTRDeleteLinkAPITokenDTO
+            {
+                id = request.Id,
+                merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
+                merchant_key = _configuration["PayTR:MerchantKey"],
+                merchant_salt = _configuration["PayTR:MerchantSalt"]
+            };
 
-            var (response, success, errorMessage) = await _payTRAPIService.DeleteLinkAsync<PayTRDeleteLinkAPIPaymentDTO, string>(
-                payTRRequest, HttpContext.RequestAborted);
+            var token = TokenHasherHelper.CreatePayTRToken(tokenData);
 
-            if (!success)
-                return BadRequest($"Link silme başarısız: {errorMessage}", $"Link deletion failed: {errorMessage}");
+            var payTRRequest = new PayTRDeleteLinkAPIPaymentDTO
+            {
+                id = request.Id,
+                merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
+                paytr_token = token,
+                debug_on = bool.Parse(_configuration["PayTR:DebugMode"]) ? 1 : 0
+            };
 
-            return Success(response, "Ödeme linki silindi", "Payment link deleted");
+            var (response, statusCode) = await _payTRAPIService.DeleteLink<PayTRDeleteLinkAPIPaymentDTO, string>(payTRRequest);
+
+            if (statusCode != System.Net.HttpStatusCode.OK)
+                return BadRequest($"Link silme başarısız: HTTP {statusCode}", $"Link deletion failed: HTTP {statusCode}");
+
+            return Success(response, "Ödeme linki başarıyla silindi", "Payment link deleted successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting payment link");
-            return BadRequest("Link silme sırasında hata oluştu", "Error occurred while deleting link");
+            _logger.LogError(ex, "Error in DeletePaymentLink");
+            return BadRequest("Link silme sırasında hata oluştu", "An error occurred during link deletion");
         }
     }
 
@@ -399,7 +522,7 @@ public class PayTRController : BaseController
             // Parse form data
             var parsedData = HttpUtility.ParseQueryString(requestBody);
 
-            var callbackDto = new PayTRCallbackDTO
+            var payTRCallback = new PayTRCallbackDTO
             {
                 CallbackId = parsedData["callback_id"],
                 Hash = parsedData["hash"],
@@ -411,55 +534,41 @@ public class PayTRController : BaseController
             };
 
             if (int.TryParse(parsedData["merchant_id"], out int merchantId))
-                callbackDto.MerchantId = merchantId;
-            else
-                return Ok("OK");
+                payTRCallback.MerchantId = merchantId;
 
             if (decimal.TryParse(parsedData["total_amount"], out decimal totalAmount))
-                callbackDto.TotalAmount = totalAmount;
+                payTRCallback.TotalAmount = totalAmount;
 
             if (int.TryParse(parsedData["failed_reason_code"], out int failedReasonCode))
-                callbackDto.FailedReasonCode = failedReasonCode;
+                payTRCallback.FailedReasonCode = failedReasonCode;
 
-            // Skip failed payments
-            if (callbackDto.Status == "failed")
-            {
-                _logger.LogWarning("Failed payment callback received: {OrderNumber}", callbackDto.MerchantOid);
+            // If payment failed, just return OK
+            if (payTRCallback.Status == "failed")
                 return Ok("OK");
-            }
 
-            // Validate callback hash
-            if (!_payTRSecurityService.ValidateCallbackHash(callbackDto))
-            {
-                _logger.LogWarning("Invalid callback hash for order: {OrderNumber}", callbackDto.MerchantOid);
-                return Ok("OK");
-            }
+            // Find and update payment
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.OrderNumber == payTRCallback.MerchantOid && p.Status == PaymentStatus.Waiting);
 
-            // Find and process payment
-            var payment = await _paymentService.GetPaymentByOrderNumberAsync(callbackDto.MerchantOid ?? "");
             if (payment == null)
-            {
-                _logger.LogWarning("Payment not found for callback: {OrderNumber}", callbackDto.MerchantOid);
                 return Ok("OK");
+
+            payment.Status = payTRCallback.Status == "success" ? PaymentStatus.Success : PaymentStatus.Failed;
+            payment.LastUpdateDateTime = DateTime.UtcNow;
+            payment.PaymentDateTime = DateTime.UtcNow;
+
+            if (payTRCallback.Status == "success")
+            {
+                await ProcessSuccessfulPayment(payment);
             }
 
-            // Process the payment callback
-            var result = await _paymentService.ProcessLicensePaymentCallbackAsync(payment, callbackDto.Status ?? "failed");
-            
-            if (result)
-            {
-                _logger.LogInformation("Payment callback processed successfully: {OrderNumber}", callbackDto.MerchantOid);
-            }
-            else
-            {
-                _logger.LogError("Failed to process payment callback: {OrderNumber}", callbackDto.MerchantOid);
-            }
+            await _context.SaveChangesAsync();
 
             return Ok("OK");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing PayTR callback");
+            _logger.LogError(ex, "Error in PayTR Callback");
             return Ok("OK"); // Always return OK to PayTR
         }
     }
@@ -471,32 +580,17 @@ public class PayTRController : BaseController
     {
         string htmlResponse = @"
 <!DOCTYPE html>
-<html lang='tr'>
+<html lang='en'>
   <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <title>Ödeme Başarısız</title>
-    <style>
-      body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-      .error { color: #d32f2f; }
-    </style>
+    <title>Payment Failed</title>
   </head>
   <body>
-    <div class='error'>
-      <h1>Ödeme Başarısız</h1>
-      <p>Ödemeniz işlenemedi. Lütfen tekrar deneyiniz.</p>
-      <p>Payment Failed. Please try again.</p>
-    </div>
     <script>
-      // Notify parent window
-      if (window.parent) {
-        window.parent.postMessage({ status: 'failed' }, '*');
-      }
-      // Auto close after 5 seconds
-      setTimeout(() => {
-        if (window.close) window.close();
-      }, 5000);
+      window.parent.postMessage({ status: 'failed' }, '*');
     </script>
+    <p>Payment failed. Please close this window and try again.</p>
   </body>
 </html>";
 
@@ -506,5 +600,96 @@ public class PayTRController : BaseController
             ContentType = "text/html",
             StatusCode = 200
         };
+    }
+
+    private async Task ProcessSuccessfulPayment(Payment payment)
+    {
+        try
+        {
+            if (payment.LicenseType == PaymentLicenseType.NewLicense)
+            {
+                await ProcessNewLicensePayment(payment);
+            }
+            else if (payment.LicenseType == PaymentLicenseType.ExtendLicense)
+            {
+                await ProcessExtendLicensePayment(payment);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing successful payment for order: {OrderNumber}", payment.OrderNumber);
+        }
+    }
+
+    private async Task ProcessNewLicensePayment(Payment payment)
+    {
+        var baskets = JsonSerializer.Deserialize<List<PaymentBasketDto>>(payment.BasketItems ?? "[]");
+        if (baskets == null) return;
+
+        foreach (var basket in baskets)
+        {
+            if (basket.Licenses is JsonElement licensesElement)
+            {
+                var licenses = JsonSerializer.Deserialize<List<PaymentBasketLicenseDto>>(licensesElement.GetRawText());
+                if (licenses != null)
+                {
+                    foreach (var licenseDto in licenses)
+                    {
+                        await CreateLicenseFromPaymentAsync(payment, basket, licenseDto);
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task ProcessExtendLicensePayment(Payment payment)
+    {
+        var basket = JsonSerializer.Deserialize<PaymentBasketDto>(payment.BasketItems ?? "{}");
+        if (basket?.Licenses is JsonElement licenseElement)
+        {
+            var licenseDto = JsonSerializer.Deserialize<PaymentBasketLicenseDto>(licenseElement.GetRawText());
+            if (licenseDto != null)
+            {
+                await ExtendLicenseFromPaymentAsync(payment, licenseDto);
+            }
+        }
+    }
+
+    private async Task CreateLicenseFromPaymentAsync(Payment payment, PaymentBasketDto basket, PaymentBasketLicenseDto licenseDto)
+    {
+                    var license = new License
+            {
+                Id = Guid.NewGuid(),
+                RestaurantId = basket.RestaurantId,
+                UserId = payment.UserId,
+                LicensePackageId = licenseDto.LicensePackageId,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow,
+                StartDateTime = DateTime.UtcNow,
+                EndDateTime = DateTime.UtcNow.AddYears(licenseDto.LicensePackageTime),
+                IsActive = true
+            };
+
+        _context.Licenses.Add(license);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("License created for user {UserId}, restaurant {RestaurantId}, license {LicenseId}", 
+            payment.UserId, basket.RestaurantId, license.Id);
+    }
+
+    private async Task ExtendLicenseFromPaymentAsync(Payment payment, PaymentBasketLicenseDto licenseDto)
+    {
+        var license = await _context.Licenses.FindAsync(licenseDto.LicenseId);
+        if (license != null)
+        {
+            license.EndDateTime = license.EndDateTime.AddYears(licenseDto.LicensePackageTime);
+            license.LastUpdateDateTime = DateTime.UtcNow;
+            license.LicensePackageId = licenseDto.LicensePackageId;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("License extended for user {UserId}, license {LicenseId}", 
+                payment.UserId, license.Id);
+        }
     }
 } 

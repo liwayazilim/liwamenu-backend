@@ -1,4 +1,4 @@
-namespace QR_Menu.PayTRService.Models
+﻿namespace QR_Menu.PayTRService.Models
 {
     public class PayTRCallbackDTO
     {
@@ -13,4 +13,4 @@ namespace QR_Menu.PayTRService.Models
         public int MerchantId { get; set; }
         public bool TestMode { get; set; }
     }
-} 
+}
