@@ -61,39 +61,24 @@ public class LicensesController : BaseController
 
     [HttpGet("GetMyLicenses")]
     [RequirePermission(Permissions.Licenses.ViewOwn)]
-    public async Task<ActionResult<object>> GetMyLicenses(
+    public async Task<ActionResult<ResponsBase>> GetMyLicenses(
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
         [FromQuery] bool? isExpired,
         [FromQuery] bool? isSettingsAdded,
         [FromQuery] int? dateRange,
-        [FromQuery] int? pageNumber = null,
-        [FromQuery] int? pageSize = null)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
-            return Unauthorized(ResponsBase.Create("Geçersiz kullanıcı", "Invalid user", "401"));
+            return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
-        var response = await PaginationHelper.CreatePaginatedResponseAsync(
-            dataProvider: async (pageNum, size) => await _adminService.GetLicensesAsync(
-                search, isActive, isExpired, userId, null, isSettingsAdded, dateRange, pageNum, size),
-            pageNumber,
-            pageSize,
-            "Lisanslarınız başarıyla alındı",
-            "Your licenses retrieved successfully",
-            "Lisans bulunamadı",
-            "No licenses found"
-        );
+        var (licenses, total) = await _adminService.GetLicensesAsync(
+            search, isActive, isExpired, userId, null, isSettingsAdded, dateRange, page, pageSize);
 
-        // If response is ResponsBase 
-        if (response is ResponsBase responsBase)
-        {
-            // Now PaginationHelper always returns 200 status, so we just return Ok
-            return Ok(responsBase);
-        }
-        
-        // If response is data object 
-        return Ok(response);
+        var data = new { total, licenses };
+        return Success(data, "Lisanslarınız başarıyla alındı", "Your licenses retrieved successfully");
     }
 
     [HttpGet("GetLicenseDetailById")]

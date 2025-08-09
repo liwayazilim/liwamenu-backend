@@ -66,6 +66,7 @@ public class AuthController : BaseController
                 user.LastName,
                 user.FullName,
                 user.Email,
+                user.PhoneNumber,
                 user.Role,
                 user.IsActive,
                 user.EmailConfirmed,
@@ -117,6 +118,7 @@ public class AuthController : BaseController
             new Claim("isActive", user.IsActive.ToString().ToLower()),
             new Claim("emailConfirmed", user.EmailConfirmed.ToString().ToLower()),
             new Claim("isDealer", user.IsDealer.ToString().ToLower()),
+            new Claim("phoneNumber", user.PhoneNumber ?? string.Empty),
             new Claim("isTemporary", user.IsTemporary.ToString().ToLower()),
             new Claim("isManager", (user.Role == UserRole.Manager).ToString().ToLower()),
             new Claim("isOwner", (user.Role == UserRole.Owner).ToString().ToLower())

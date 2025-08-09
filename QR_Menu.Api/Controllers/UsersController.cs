@@ -236,9 +236,9 @@ public class UsersController : BaseController
 
      
 
-    [HttpGet("GetProfile")]
+    [HttpGet("GetUser")]
     [Authorize]
-    public async Task<ActionResult<ResponsBase>> GetProfile()
+    public async Task<ActionResult<ResponsBase>> GetUser()
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
@@ -246,5 +246,34 @@ public class UsersController : BaseController
         var user = await _userService.GetByIdAsync(userId);
         if (user == null) return NotFound("Kullanıcı bulunamadı", "User not found");
         return Success(user, "Profil bilgileri başarıyla alındı", "Profile information retrieved successfully");
+    }
+
+    [HttpPut("UpdateUser")]
+    [Authorize]
+    public async Task<ActionResult<ResponsBase>> UpdateOwnUser([FromBody] UserUpdateDto dto)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+        var success = await _userService.UpdateAsync(userId, dto);
+        if (!success) return NotFound("Kullanıcı bulunamadı", "User not found");
+        return Success("Profil başarıyla güncellendi", "Profile updated successfully");
+    }
+
+    [HttpPut("UpdateUserPasswordByUserId")]
+    [Authorize]
+    public async Task<ActionResult<ResponsBase>> UpdateUserPasswordByUserId([FromBody] UpdatePasswordDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest("Geçersiz istek", "Invalid request");
+
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
+            return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+        var (success, message) = await _userService.UpdateOwnPasswordAsync(userId, dto.NewPassword);
+        if (!success) return BadRequest(message, message);
+        return Success("Şifre başarıyla güncellendi", "Password updated successfully");
     }
 }

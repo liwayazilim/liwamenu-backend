@@ -22,10 +22,9 @@ public class PermissionHandler : AuthorizationHandler<PermissionRequirement>
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        // Check if user is authenticated
+        // If user is not authenticated, don't fail here. Let the middleware issue a 401 Challenge.
         if (context.User?.Identity?.IsAuthenticated != true)
         {
-            context.Fail();
             return;
         }
 
@@ -35,7 +34,6 @@ public class PermissionHandler : AuthorizationHandler<PermissionRequirement>
         
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {
-            context.Fail();
             return;
         }
 
@@ -43,7 +41,6 @@ public class PermissionHandler : AuthorizationHandler<PermissionRequirement>
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null || !user.IsActive)
         {
-            context.Fail();
             return;
         }
 
@@ -68,6 +65,7 @@ public class PermissionHandler : AuthorizationHandler<PermissionRequirement>
             return;
         }
 
+        // Authenticated but lacks permission -> explicit forbid
         context.Fail();
     }
 } 

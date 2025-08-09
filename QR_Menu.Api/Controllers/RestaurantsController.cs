@@ -77,8 +77,13 @@ public class RestaurantsController : BaseController
     [HttpGet("myRestaurants")]
     [RequirePermission(Permissions.Restaurants.ViewOwn)]
     public async Task<ActionResult<ResponsBase>> GetMyRestaurants(
-        [FromQuery] string? search, 
-        [FromQuery] int page = 1, 
+        [FromQuery] string? search,
+        [FromQuery] string? city = null,
+        [FromQuery] string? district = null,
+        [FromQuery] string? neighbourhood = null,
+        [FromQuery] bool? active = null,
+        [FromQuery] bool? hasLicense = null,
+        [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
@@ -86,7 +91,7 @@ public class RestaurantsController : BaseController
             return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
         var (restaurants, total) = await _adminService.GetRestaurantsAsync(
-            search, null, null, null, userId, null, null, null, page, pageSize);
+            search, city, active, hasLicense, userId, null, district, neighbourhood, page, pageSize);
         var data = new { total, restaurants };
         return Success(data, "Restoranlarınız başarıyla alındı", "Your restaurants retrieved successfully");
     }
@@ -159,7 +164,7 @@ public class RestaurantsController : BaseController
         return Ok(response);
     }
 
-   
+    
 
     /// <summary>
     /// Public restaurants can be viewed by anyone

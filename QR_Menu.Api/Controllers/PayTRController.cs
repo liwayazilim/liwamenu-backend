@@ -280,13 +280,13 @@ public class PayTRController : BaseController
                     });
                 }
 
-                baskets.Add(new PaymentBasketDto
-                {
-                    RestaurantId = restaurantId,
-                    RestaurantName = restaurant.Name,
-                    Username = targetUser.FullName,
-                    Licenses = basketLicenses
-                });
+                    baskets.Add(new PaymentBasketDto
+                    {
+                        RestaurantId = restaurantId,
+                        RestaurantName = restaurant.Name,
+                        Username = targetUser.FullName,
+                        Licenses = basketLicenses
+                    });
             }
 
             if (!baskets.Any())
@@ -588,7 +588,7 @@ public class PayTRController : BaseController
   </head>
   <body>
     <script>
-      window.parent.postMessage({ status: 'failed' }, '*');
+        window.parent.postMessage({ status: 'failed' }, '*');
     </script>
     <p>Payment failed. Please close this window and try again.</p>
   </body>

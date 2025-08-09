@@ -40,6 +40,7 @@ public static class Roles
         {
             // Own Restaurant Management
             Permissions.Restaurants.ViewOwn,
+            Permissions.Restaurants.Create,
             Permissions.Restaurants.UpdateOwn,
 
             // Own Menu Management

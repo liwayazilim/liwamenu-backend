@@ -496,6 +496,26 @@ public class UserService
         return (true, null);
     }
 
+    public async Task<(bool Success, string Message)> UpdateOwnPasswordAsync(Guid userId, string newPassword)
+    {
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+            return (false, "User not found");
+
+        // Generate a password reset token and use it to set the new password
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, resetToken, newPassword);
+        if (!result.Succeeded)
+        {
+            var msg = string.Join(", ", result.Errors.Select(e => e.Description));
+            return (false, msg);
+        }
+
+        user.LastUpdateDateTime = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+        return (true, "Password updated successfully");
+    }
+
     public async Task<bool> DeleteAsync(Guid id)
     {
         
