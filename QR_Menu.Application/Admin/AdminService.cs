@@ -337,6 +337,9 @@ public class AdminService
                 LicenseUserPrice = r.License != null ? r.License.UserPrice : null,
                 LicenseDealerPrice = r.License != null ? r.License.DealerPrice : null,
 
+                // images infos: 
+                ImageFileName = r.ImageFileName,
+                ImageContentType = r.ImageContentType,
                 // Statistics
                 CategoriesCount = r.Categories != null ? r.Categories.Count : 0,
                 ProductsCount = r.Products != null ? r.Products.Count : 0,
@@ -400,8 +403,8 @@ public class AdminService
             HasLicense = restaurant.License != null,
             LicenseStart = restaurant.License?.StartDateTime,
             LicenseEnd = restaurant.License?.EndDateTime,
-                            LicenseIsActive = restaurant.License?.IsActive ?? false,
-                LicenseIsExpired = restaurant.License != null && restaurant.License.EndDateTime <= DateTime.UtcNow,
+            LicenseIsActive = restaurant.License?.IsActive ?? false,
+            LicenseIsExpired = restaurant.License != null && restaurant.License.EndDateTime <= DateTime.UtcNow,
             LicenseUserPrice = restaurant.License?.UserPrice,
             LicenseDealerPrice = restaurant.License?.DealerPrice,
             CategoriesCount = restaurant.Categories?.Count ?? 0,

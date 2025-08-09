@@ -46,6 +46,12 @@ public class AdminRestaurantDto
     public bool LicenseIsExpired { get; set; }
     public double? LicenseUserPrice { get; set; }
     public double? LicenseDealerPrice { get; set; }
+
+    // images infos: 
+    public string? ImageFileName { get; set; }
+    public string? ImageContentType { get; set; }
+    public bool HasImage => !string.IsNullOrEmpty(ImageFileName);
+    public string? ImageUrl => HasImage ? "/images/restaurants/" + ImageFileName : null;
     
     // Statistics
     public int CategoriesCount { get; set; }

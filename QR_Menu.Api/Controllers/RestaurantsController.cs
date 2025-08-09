@@ -74,7 +74,7 @@ public class RestaurantsController : BaseController
     /// <summary>
     /// User must be logged in to see his own restoranlar
     /// </summary>
-    [HttpGet("myRestaurants")]
+    [HttpGet("GetmyRestaurants")]
     [RequirePermission(Permissions.Restaurants.ViewOwn)]
     public async Task<ActionResult<ResponsBase>> GetMyRestaurants(
         [FromQuery] string? search,
@@ -92,7 +92,14 @@ public class RestaurantsController : BaseController
 
         var (restaurants, total) = await _adminService.GetRestaurantsAsync(
             search, city, active, hasLicense, userId, null, district, neighbourhood, page, pageSize);
-        var data = new { total, restaurants };
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var restaurantsWithAbsolute = restaurants.Select(r => new {
+            restaurant = r,
+            imageAbsoluteUrl = r.ImageUrl != null ? baseUrl + r.ImageUrl : null
+        });
+
+        var data = new { total, restaurants = restaurantsWithAbsolute };
         return Success(data, "Restoranlarınız başarıyla alındı", "Your restaurants retrieved successfully");
     }
 
@@ -122,7 +129,12 @@ public class RestaurantsController : BaseController
     {
         var restaurant = await _adminService.GetRestaurantDetailAsync(restaurantId);
         if (restaurant == null) return NotFound("Restoran bulunamadı", "Restaurant not found");
-        return Success(restaurant, "Restoran detayları başarıyla alındı", "Restaurant details retrieved successfully");
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var data = new {
+            restaurant,
+            imageAbsoluteUrl = restaurant.ImageUrl != null ? baseUrl + restaurant.ImageUrl : null
+        };
+        return Success(data, "Restoran detayları başarıyla alındı", "Restaurant details retrieved successfully");
     }
 
     [HttpGet("GetRestaurantsByUserId")]
