@@ -52,6 +52,7 @@ public class AdminRestaurantDto
     public string? ImageContentType { get; set; }
     public bool HasImage => !string.IsNullOrEmpty(ImageFileName);
     public string? ImageUrl => HasImage ? "/images/restaurants/" + ImageFileName : null;
+    public string? ImageAbsoluteUrl { get; set; }
     
     // Statistics
     public int CategoriesCount { get; set; }

@@ -47,9 +47,16 @@ public class RestaurantsController : BaseController
         [FromQuery] int? pageNumber = null,
         [FromQuery] int? pageSize = null)
     {
+        // to get the imge absolute path: 
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
-            dataProvider: async (page, size) => await _adminService.GetRestaurantsAsync(
-                searchKey, city, active, hasLicense, ownerId, dealerId, district, neighbourhood, page, size),
+            dataProvider: async (page, size) =>
+            {
+                var (restaurants, total) = await _adminService.GetRestaurantsAsync(
+                    searchKey, city, active, hasLicense, ownerId, dealerId, district, neighbourhood, page, size, baseUrl);
+                return (restaurants, total);
+            },
             pageNumber,
             pageSize,
             "Restoranlar başarıyla alındı",
@@ -76,31 +83,44 @@ public class RestaurantsController : BaseController
     /// </summary>
     [HttpGet("GetmyRestaurants")]
     [RequirePermission(Permissions.Restaurants.ViewOwn)]
-    public async Task<ActionResult<ResponsBase>> GetMyRestaurants(
-        [FromQuery] string? search,
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<object>> GetMyRestaurants(
+        [FromQuery] string? searchKey = null,
         [FromQuery] string? city = null,
         [FromQuery] string? district = null,
         [FromQuery] string? neighbourhood = null,
         [FromQuery] bool? active = null,
         [FromQuery] bool? hasLicense = null,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int? pageNumber = null,
+        [FromQuery] int? pageSize = null)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
             return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
-        var (restaurants, total) = await _adminService.GetRestaurantsAsync(
-            search, city, active, hasLicense, userId, null, district, neighbourhood, page, pageSize);
-
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var restaurantsWithAbsolute = restaurants.Select(r => new {
-            restaurant = r,
-            imageAbsoluteUrl = r.ImageUrl != null ? baseUrl + r.ImageUrl : null
-        });
+        var response = await PaginationHelper.CreatePaginatedResponseAsync(
+            dataProvider: async (page, size) =>
+            {
+                var (restaurants, total) = await _adminService.GetRestaurantsAsync(
+                    searchKey, city, active, hasLicense, userId, null, district, neighbourhood, page, size, baseUrl);
+                return (restaurants, total);
+            },
+            pageNumber,
+            pageSize,
+            "Restoranlarınız başarıyla alındı",
+            "Your restaurants retrieved successfully",
+            "Restoranlarınız bulunamadı",
+            "Your restaurants not found"
+        );
 
-        var data = new { total, restaurants = restaurantsWithAbsolute };
-        return Success(data, "Restoranlarınız başarıyla alındı", "Your restaurants retrieved successfully");
+        if (response is ResponsBase responsBase)
+        {
+            return Ok(responsBase);
+        }
+
+        return Ok(response);
     }
 
     /* /// <summary>
@@ -154,9 +174,14 @@ public class RestaurantsController : BaseController
         //[FromQuery] bool? inPersonOrder = null,
         //[FromQuery] bool? onlineOrder = null,
     {
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
-            dataProvider: async (page, size) => await _adminService.GetRestaurantsAsync(
-                searchKey, city, active, null, userId, null, district, neighbourhood, page, size),
+            dataProvider: async (page, size) =>
+            {
+                var (restaurants, total) = await _adminService.GetRestaurantsAsync(
+                    searchKey, city, active, null, userId, null, district, neighbourhood, page, size, baseUrl);
+                return (restaurants, total);
+            },
             pageNumber,
             pageSize,
             "Kullanıcının restoranları başarıyla alındı",

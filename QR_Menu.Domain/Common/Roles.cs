@@ -60,7 +60,8 @@ public static class Roles
             Permissions.Finance.ViewOwnFinancials,
 
             // Own License Viewing
-            Permissions.Licenses.ViewOwn
+            Permissions.Licenses.ViewOwn,
+            Permissions.Licenses.ViewPackages
         };
     }
 
@@ -88,6 +89,7 @@ public static class Roles
             Permissions.Licenses.Extend,
             Permissions.Licenses.Activate,
             Permissions.Licenses.Deactivate,
+            Permissions.Licenses.ViewPackages,
 
             // Order Management (licensed restaurants)
             Permissions.Orders.View,

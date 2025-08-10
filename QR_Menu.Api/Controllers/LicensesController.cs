@@ -61,24 +61,38 @@ public class LicensesController : BaseController
 
     [HttpGet("GetMyLicenses")]
     [RequirePermission(Permissions.Licenses.ViewOwn)]
-    public async Task<ActionResult<ResponsBase>> GetMyLicenses(
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<object>> GetMyLicenses(
         [FromQuery] string? search,
         [FromQuery] bool? isActive,
         [FromQuery] bool? isExpired,
         [FromQuery] bool? isSettingsAdded,
         [FromQuery] int? dateRange,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int? pageNumber = null,
+        [FromQuery] int? pageSize = null)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (userIdStr == null || !Guid.TryParse(userIdStr, out var userId))
             return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
-        var (licenses, total) = await _adminService.GetLicensesAsync(
-            search, isActive, isExpired, userId, null, isSettingsAdded, dateRange, page, pageSize);
+        var response = await PaginationHelper.CreatePaginatedResponseAsync(
+            dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
+                search, isActive, isExpired, userId, null, isSettingsAdded, dateRange, page, size, ownerOnly: true),
+            pageNumber,
+            pageSize,
+            "Lisanslarınız başarıyla alındı",
+            "Your licenses retrieved successfully",
+            "Lisanslarınız bulunamadı",
+            "Your licenses not found"
+        );
 
-        var data = new { total, licenses };
-        return Success(data, "Lisanslarınız başarıyla alındı", "Your licenses retrieved successfully");
+        if (response is ResponsBase responsBase)
+        {
+            return Ok(responsBase);
+        }
+
+        return Ok(response);
     }
 
     [HttpGet("GetLicenseDetailById")]
@@ -168,7 +182,7 @@ public class LicensesController : BaseController
   
 
     [HttpGet("GetLicensesByRestaurantId")]
-    [RequirePermission(Permissions.Licenses.View)]
+    [RequirePermission(Permissions.Licenses.ViewOwn)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<object>> GetLicensesByRestaurantId(
@@ -185,6 +199,23 @@ public class LicensesController : BaseController
         if (restaurant == null)
             return NotFound("Restoran bulunamadı.", "Restaurant not found.");
 
+        // Authorization: Managers can access any restaurant. Owners/Dealers only their own.
+        var roles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var isManager = roles.Contains(Roles.Manager);
+        if (!isManager)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+            var isOwnerOfRestaurant = restaurant.UserId == currentUserId;
+            var isDealerOfRestaurant = restaurant.DealerId.HasValue && restaurant.DealerId.Value == currentUserId;
+            if (!isOwnerOfRestaurant && !isDealerOfRestaurant)
+            {
+                return Forbid();
+            }
+        }
+ 
         var response = await PaginationHelper.CreatePaginatedResponseAsync(
             dataProvider: async (page, size) => await _adminService.GetLicensesAsync(
                 searchKey, isActive, null, null, restaurantId, isSettingsAdded, dateRange, page, size),
@@ -195,7 +226,7 @@ public class LicensesController : BaseController
             "Restoran lisansları bulunamadı",
             "Restaurant licenses not found"
         );
-
+ 
         // If response is ResponsBase (when both parameters are null), handle it accordingly
         if (response is ResponsBase responsBase)
         {

@@ -216,7 +216,8 @@ public class AdminService
         string? district = null,
         string? neighbourhood = null,
         int pageNumber = 1,
-        int pageSize = 20)
+        int pageSize = 20,
+        string? baseUrl = null)
     {
         var query = _context.Restaurants
             .AsNoTracking()
@@ -340,6 +341,7 @@ public class AdminService
                 // images infos: 
                 ImageFileName = r.ImageFileName,
                 ImageContentType = r.ImageContentType,
+                ImageAbsoluteUrl = r.ImageFileName != null && baseUrl != null ? baseUrl + "/images/restaurants/" + r.ImageFileName : null,
                 // Statistics
                 CategoriesCount = r.Categories != null ? r.Categories.Count : 0,
                 ProductsCount = r.Products != null ? r.Products.Count : 0,
@@ -532,7 +534,8 @@ public class AdminService
         bool? isSettingsAdded = null,
         int? dateRange = null,
         int page = 1,
-        int pageSize = 20)
+        int pageSize = 20,
+        bool ownerOnly = false)
     {
         var query = _context.Licenses
             .Include(l => l.User) // l.User = The inspector/admin
@@ -570,7 +573,14 @@ public class AdminService
 
         if (userId.HasValue)
         {
-            query = query.Where(l => l.UserId == userId.Value);
+            if (ownerOnly)
+            {
+                query = query.Where(l => l.Restaurant != null && l.Restaurant.UserId == userId.Value);
+            }
+            else
+            {
+                query = query.Where(l => l.UserId == userId.Value);
+            }
         }
 
         if (restaurantId.HasValue)
