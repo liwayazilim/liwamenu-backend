@@ -357,7 +357,7 @@ public class AdminService
         return (restaurants, total);
     }    
 
-    public async Task<AdminRestaurantDetailDto?> GetRestaurantDetailAsync(Guid restaurantId)
+    public async Task<AdminRestaurantDetailDto?> GetRestaurantDetailAsync(Guid restaurantId, string? baseUrl = null)
     {
         var restaurant = await _context.Restaurants
             .Include(r => r.User)
@@ -413,6 +413,13 @@ public class AdminService
             ProductsCount = restaurant.Categories?.Sum(c => c.Products?.Count ?? 0) ?? 0,
             ActiveProductsCount = restaurant.Categories?.Sum(c => c.Products?.Count(p => p.IsActive) ?? 0) ?? 0
         };
+
+        // image infos
+        result.ImageFileName = restaurant.ImageFileName;
+        result.ImageContentType = restaurant.ImageContentType;
+        result.ImageAbsoluteUrl = restaurant.ImageFileName != null && baseUrl != null
+            ? baseUrl + "/images/restaurants/" + restaurant.ImageFileName
+            : null;
 
         // Get categories too:
         if (restaurant.Categories != null)

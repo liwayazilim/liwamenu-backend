@@ -19,7 +19,7 @@ public class Order
     public string? CustomerName { get; set; }
     public string? CustomerTel { get; set; }
     public bool IsInPerson { get; set; }
-    public ICollection<Product>? Products { get; set; }
+    public ICollection<OrderItem>? Items { get; set; }
     public User? User { get; set; }
     public Restaurant? Restaurant { get; set; }
 } 

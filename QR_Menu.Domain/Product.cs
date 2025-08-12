@@ -11,5 +11,5 @@ public class Product
     public bool IsActive { get; set; } = true;
     public Category? Category { get; set; }
     public Restaurant? Restaurant { get; set; }
-    public ICollection<Order>? Orders { get; set; }
+    public ICollection<OrderItem>? OrderItems { get; set; }
 } 

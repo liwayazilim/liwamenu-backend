@@ -14,6 +14,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
     public DbSet<License> Licenses { get; set; }
     public DbSet<LicensePackage> LicensePackages { get; set; }
     public DbSet<Order> Orders { get; set; }
+    public DbSet<OrderItem> OrderItems { get; set; }
     public DbSet<Product> Products { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<PaymentMethod> PaymentMethods { get; set; }
@@ -70,11 +71,25 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             .HasForeignKey(p => p.RestaurantId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Order-Product many-to-many
+        // Order-OrderItem one-to-many with payload
         modelBuilder.Entity<Order>()
-            .HasMany(o => o.Products)
-            .WithMany(p => p.Orders)
-            .UsingEntity(j => j.ToTable("OrderProducts"));
+            .HasMany(o => o.Items)
+            .WithOne(oi => oi.Order!)
+            .HasForeignKey(oi => oi.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Product>()
+            .HasMany(p => p.OrderItems)
+            .WithOne(oi => oi.Product!)
+            .HasForeignKey(oi => oi.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<OrderItem>()
+            .Property(oi => oi.LineTotal)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<OrderItem>()
+            .Property(oi => oi.UnitPrice)
+            .HasPrecision(18, 2);
 
         // Restaurant-PaymentMethod many-to-many
         modelBuilder.Entity<Restaurant>()

@@ -15,6 +15,8 @@ using System.Text;
 using System.Web;
 using Microsoft.EntityFrameworkCore;
 using QR_Menu.Infrastructure;
+using System.Text.Encodings.Web;
+using System.Buffers.Text;
 
 namespace QR_Menu.Api.Controllers;
 
@@ -43,7 +45,7 @@ public class PayTRController : BaseController
     }
 
     [HttpPost("extend-license")]
-    [RequirePermission(Permissions.Licenses.Extend)]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -134,7 +136,8 @@ public class PayTRController : BaseController
                 user_ip = userIp,
                 merchant_oid = orderNumber,
                 email = request.UserEmail,
-                payment_amount = (double)totalAmount,
+                // PayTR expects amount in kuruş (integer)
+                payment_amount = System.Math.Round(totalAmount * 100),
                 payment_type = "card",
                 installment_count = 0,
                 currency = "TL",
@@ -144,6 +147,14 @@ public class PayTRController : BaseController
 
             var token = TokenHasherHelper.CreatePayTRToken(tokenData);
 
+            // Build PayTR user_basket: array of [product, price_kurus, quantity] base64-encoded JSON
+            var basketItems = new List<object[]>
+            {
+                new object[] { licensePackage.Name, (int)System.Math.Round(totalAmount * 100), 1 }
+            };
+            var basketJsonForPayTR = JsonSerializer.Serialize(basketItems);
+            var userBasketBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(basketJsonForPayTR));
+
             var payTRRequest = new PayTRDirectAPIPaymentDTO
             {
                 merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
@@ -151,7 +162,8 @@ public class PayTRController : BaseController
                 user_ip = userIp,
                 merchant_oid = orderNumber,
                 email = request.UserEmail,
-                payment_amount = (double)totalAmount,
+                // PayTR expects amount in kuruş (integer)
+                payment_amount = (int)System.Math.Round(totalAmount * 100),
                 payment_type = "card",
                 installment_count = 0,
                 currency = "TL",
@@ -165,7 +177,7 @@ public class PayTRController : BaseController
                 user_name = request.UserName,
                 user_address = request.UserAddress,
                 user_phone = request.UserPhoneNumber,
-                user_basket = basketJson,
+                user_basket = userBasketBase64,
                 merchant_ok_url = _configuration["PayTR:SuccessUrl"],
                 merchant_fail_url = _configuration["PayTR:FailUrl"]
             };
@@ -209,7 +221,7 @@ public class PayTRController : BaseController
     }
 
     [HttpPost("add-license")]
-    [RequirePermission(Permissions.Licenses.Create)]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -306,7 +318,8 @@ public class PayTRController : BaseController
                 user_ip = userIp,
                 merchant_oid = orderNumber,
                 email = request.UserEmail,
-                payment_amount = totalAmount,
+                // Kuruş integer
+                payment_amount = System.Math.Round(totalAmount * 100),
                 payment_type = "card",
                 installment_count = 0,
                 currency = "TL",
@@ -316,6 +329,26 @@ public class PayTRController : BaseController
 
             var token = TokenHasherHelper.CreatePayTRToken(tokenData);
 
+            // Build PayTR user_basket from all license packages
+            var paytrItems = new List<object[]>();
+            foreach (var b in baskets)
+            {
+                if (b.Licenses is IEnumerable<PaymentBasketLicenseDto> licList)
+                {
+                    foreach (var lic in licList)
+                    {
+                        paytrItems.Add(new object[] { lic.LicensePackageName, (int)System.Math.Round(lic.LicensePackagePrice * 100), 1 });
+                    }
+                }
+            }
+            if (paytrItems.Count == 0)
+            {
+                // fallback single item
+                paytrItems.Add(new object[] { "License", (int)System.Math.Round(totalAmount * 100), 1 });
+            }
+            var paytrBasketJson = JsonSerializer.Serialize(paytrItems);
+            var paytrBasketBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(paytrBasketJson));
+
             var payTRRequest = new PayTRDirectAPIPaymentDTO
             {
                 merchant_id = int.Parse(_configuration["PayTR:MerchantId"]),
@@ -323,7 +356,7 @@ public class PayTRController : BaseController
                 user_ip = userIp,
                 merchant_oid = orderNumber,
                 email = request.UserEmail,
-                payment_amount = totalAmount,
+                payment_amount = (int)System.Math.Round(totalAmount * 100),
                 payment_type = "card",
                 installment_count = 0,
                 currency = "TL",
@@ -337,7 +370,7 @@ public class PayTRController : BaseController
                 user_name = request.UserName,
                 user_address = request.UserAddress,
                 user_phone = request.UserPhoneNumber,
-                user_basket = basketsJson,
+                user_basket = paytrBasketBase64,
                 merchant_ok_url = _configuration["PayTR:SuccessUrl"],
                 merchant_fail_url = _configuration["PayTR:FailUrl"]
             };
@@ -381,7 +414,7 @@ public class PayTRController : BaseController
     }
 
     [HttpPost("create-payment-link")]
-    [RequirePermission(Permissions.Orders.Create)]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ResponsBase>> CreatePaymentLink([FromBody] CreatePaymentLinkDto request)
@@ -466,7 +499,7 @@ public class PayTRController : BaseController
     }
 
     [HttpPost("delete-payment-link")]
-    [RequirePermission(Permissions.Orders.Delete)]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ResponsBase>> DeletePaymentLink([FromBody] DeletePaymentLinkDto request)

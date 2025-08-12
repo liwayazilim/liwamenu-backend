@@ -144,17 +144,32 @@ public class RestaurantsController : BaseController
     }*/
 
     [HttpGet("GetRestaurantById")]
-    [RequirePermission(Permissions.Restaurants.View)]
-    public async Task<ActionResult<ResponsBase>> GetRestaurantById(Guid restaurantId)
+[RequirePermission(Permissions.Restaurants.ViewOwn)]
+[ProducesResponseType(StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
+public async Task<ActionResult<ResponsBase>> GetRestaurantById([FromQuery] Guid restaurantId)
     {
-        var restaurant = await _adminService.GetRestaurantDetailAsync(restaurantId);
-        if (restaurant == null) return NotFound("Restoran bulunamadı", "Restaurant not found");
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var data = new {
-            restaurant,
-            imageAbsoluteUrl = restaurant.ImageUrl != null ? baseUrl + restaurant.ImageUrl : null
-        };
-        return Success(data, "Restoran detayları başarıyla alındı", "Restaurant details retrieved successfully");
+        var restaurant = await _adminService.GetRestaurantDetailAsync(restaurantId, baseUrl);
+        if (restaurant == null) return NotFound("Restoran bulunamadı", "Restaurant not found");
+
+        // Authorization: Managers can access any restaurant. Owners/Dealers only their own.
+        var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var isManager = roles.Contains(Roles.Manager);
+        if (!isManager)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+            var isOwnerOfRestaurant = restaurant.UserId == currentUserId;
+            var isDealerOfRestaurant = restaurant.DealerId.HasValue && restaurant.DealerId.Value == currentUserId;
+            if (!isOwnerOfRestaurant && !isDealerOfRestaurant)
+                return Forbid();
+        }
+
+        return Success(restaurant, "Restoran detayları başarıyla alındı", "Restaurant details retrieved successfully");
     }
 
     [HttpGet("GetRestaurantsByUserId")]
