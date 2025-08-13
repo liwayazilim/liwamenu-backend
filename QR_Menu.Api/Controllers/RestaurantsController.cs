@@ -264,9 +264,27 @@ public async Task<ActionResult<ResponsBase>> GetRestaurantById([FromQuery] Guid 
 
 
     [HttpPut("UpdateRestaurant")]
-    [RequirePermission(Permissions.Restaurants.Update)]
+    [RequirePermission(Permissions.Restaurants.UpdateOwn)]
     public async Task<ActionResult<ResponsBase>> UpdateRestaurant([FromForm] RestaurantUpdateDto dto)
     {
+        // Authorization: Managers can update any restaurant. Owners/Dealers only their own.
+        var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var isManager = roles.Contains(Roles.Manager);
+        if (!isManager)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+            			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(dto.RestaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue)
+				return NotFound("Restoran bulunamadı.", "Restaurant not found.");
+
+			var isOwnerOfRestaurant = ownerId == currentUserId;
+			var isDealerOfRestaurant = dealerId.HasValue && dealerId.Value == currentUserId;
+			if (!isOwnerOfRestaurant && !isDealerOfRestaurant)
+				return Forbid();
+        }
         var (restaurant, errorMessage) = await _restaurantService.UpdateAsync(dto.RestaurantId, dto, _environment.WebRootPath);
         
         if (restaurant == null)

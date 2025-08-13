@@ -61,6 +61,11 @@ public class UserService
             var msg = string.Join(", ", result.Errors.Select(e => e.Description));
             return (false, msg);
         }
+
+        var createdUser = await _userManager.FindByEmailAsync(dto.Email);
+        await _userManager.SetPhoneNumberAsync(createdUser, dto.PhoneNumber);
+
+
         try
         {
             await _userManager.AddToRoleAsync(user, Roles.Owner);

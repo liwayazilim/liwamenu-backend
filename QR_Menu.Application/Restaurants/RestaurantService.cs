@@ -23,6 +23,15 @@ public class RestaurantService
         _imageService = imageService;
     }
 
+    public async Task<(Guid? OwnerId, Guid? DealerId)> GetOwnerAndDealerAsync(Guid restaurantId)
+    {
+        return await _context.Restaurants
+            .AsNoTracking()
+            .Where(r => r.Id == restaurantId)
+            .Select(r => new ValueTuple<Guid?, Guid?>(r.UserId, r.DealerId))
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? searchKey = null, string? city = null, bool? active = null, int pageNumber = 1, int pageSize = 10, string? district = null, string? neighbourhood = null)
     {
         var query = _context.Restaurants.AsNoTracking();

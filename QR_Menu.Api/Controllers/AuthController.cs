@@ -33,6 +33,10 @@ public class AuthController : BaseController
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ResponsBase>> Register([FromBody] RegisterUserDto dto)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ResponsBase.Create("Geçersiz istek", "Invalid request", "400"));
+        }
         var (success, message) = await _userService.RegisterAsync(dto);
         if (!success) return BadRequest(ResponsBase.Create(message, message, "400"));
         return Ok(ResponsBase.Create("Kayıt başarılı. Lütfen e-postanızı kontrol ederek hesabınızı doğrulayın.", "Registration successful. Please check your email to verify your account.", "200"));
