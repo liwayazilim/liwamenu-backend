@@ -21,6 +21,7 @@ public class AdminRestaurantDto
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; }
+    public int ThemeId { get; set; }
     public DateTime CreatedDateTime { get; set; }
     public DateTime LastUpdateDateTime { get; set; }
     

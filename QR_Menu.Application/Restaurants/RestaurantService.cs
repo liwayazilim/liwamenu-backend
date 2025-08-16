@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QR_Menu.Application.Restaurants.DTOs;
+
 using QR_Menu.Domain;
 using QR_Menu.Infrastructure;
 using Microsoft.AspNetCore.Identity;
@@ -134,6 +135,57 @@ public class RestaurantService
         return (true, null);
     }
 
+    public async Task<List<PaymentMethodOptionDto>> GetRestaurantPaymentMethodsAsync(Guid restaurantId)
+    {
+        // All globally active methods
+        var methods = await _context.PaymentMethods.AsNoTracking()
+            .Where(pm => pm.IsActive)
+            .OrderBy(pm => pm.Name)
+            .Select(pm => new { pm.Id, pm.Name })
+            .ToListAsync();
+
+        // Current enabled set for this restaurant
+        var enabledIds = await _context.Restaurants
+            .Where(r => r.Id == restaurantId)
+            .SelectMany(r => r.PaymentMethods!.Select(pm => pm.Id))
+            .ToListAsync();
+
+        var set = enabledIds.ToHashSet();
+        return methods.Select(m => new PaymentMethodOptionDto
+        {
+            Id = m.Id,
+            Name = m.Name,
+            Enabled = set.Contains(m.Id)
+        }).ToList();
+    }
+
+    public async Task<(bool ok, string? error)> SetRestaurantPaymentMethodsAsync(PaymentMethodsUpdateDto dto)
+    {
+        var restaurant = await _context.Restaurants
+            .Include(r => r.PaymentMethods)
+            .FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
+        if (restaurant == null) return (false, "Restoran bulunamadı.");
+
+        // Only allow IDs that exist and are globally active
+        var validIds = await _context.PaymentMethods
+            .Where(pm => pm.IsActive && dto.MethodIds.Contains(pm.Id))
+            .Select(pm => pm.Id)
+            .ToListAsync();
+
+        // Replace set
+        restaurant.PaymentMethods ??= new List<PaymentMethod>();
+        restaurant.PaymentMethods.Clear();
+        if (validIds.Count > 0)
+        {
+            var attachList = await _context.PaymentMethods.Where(pm => validIds.Contains(pm.Id)).ToListAsync();
+            foreach (var m in attachList)
+                restaurant.PaymentMethods.Add(m);
+        }
+        restaurant.LastUpdateDateTime = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
+
     public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? searchKey = null, string? city = null, bool? active = null, int pageNumber = 1, int pageSize = 10, string? district = null, string? neighbourhood = null)
     {
         var query = _context.Restaurants.AsNoTracking();
@@ -187,6 +239,12 @@ public class RestaurantService
             return (null, "Geçersiz koordinatlar. Lütfen geçerli bir konum seçin.");
         }
 
+        // Validate theme id
+        if (dto.ThemeId.HasValue && (dto.ThemeId.Value < 0 || dto.ThemeId.Value > 14))
+        {
+            return (null, "Geçersiz tema. Tema 0-14 aralığında olmalıdır.");
+        }
+
         // Check if user exists
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null)
@@ -229,6 +287,7 @@ public class RestaurantService
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             IsActive = dto.IsActive,
+            ThemeId = dto.ThemeId ?? 0,
             CreatedDateTime = DateTime.UtcNow,
             LastUpdateDateTime = DateTime.UtcNow
         };
@@ -325,6 +384,14 @@ public class RestaurantService
             entity.Latitude = dto.Latitude.Value;
         if (dto.Longitude.HasValue && dto.Longitude.Value != 0)
             entity.Longitude = dto.Longitude.Value;
+        
+        // Update theme if provided
+        if (dto.ThemeId.HasValue)
+        {
+            if (dto.ThemeId.Value < 0 || dto.ThemeId.Value > 14)
+                return (null, "Geçersiz tema. Tema 0-14 aralığında olmalıdır.");
+            entity.ThemeId = dto.ThemeId.Value;
+        }
             
         entity.LastUpdateDateTime = DateTime.UtcNow;
 

@@ -15,6 +15,7 @@ public class RestaurantProfile : Profile
         CreateMap<RestaurantCreateDto, Restaurant>()
             .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.Latitude))
             .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.Longitude))
+            .ForMember(dest => dest.ThemeId, opt => opt.MapFrom(src => src.ThemeId ?? 0))
             .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber))
             .ForMember(dest => dest.ImageData, opt => opt.Ignore())
             .ForMember(dest => dest.ImageFileName, opt => opt.Ignore())

@@ -26,6 +26,7 @@ public class Restaurant
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; } = false;
     public string? SocialLinks { get; set; }
+    public int ThemeId { get; set; } = 0;
     
     // Image properties
     public byte[]? ImageData { get; set; }

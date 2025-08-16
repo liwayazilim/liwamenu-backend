@@ -448,6 +448,56 @@ public async Task<ActionResult<ResponsBase>> GetRestaurantById([FromQuery] Guid 
 		return Success(read!, "Sosyal medya linkleri güncellendi", "Social links updated");
 	}
 
+	[HttpGet("GetPaymentMethods")]
+	[RequirePermission(Permissions.Restaurants.ViewOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> GetPaymentMethods([FromQuery] Guid restaurantId)
+	{
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(restaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) return NotFound("Restoran bulunamadı", "Restaurant not found");
+			if (ownerId != currentUserId && dealerId != currentUserId) return Forbid();
+		}
+		var list = await _restaurantService.GetRestaurantPaymentMethodsAsync(restaurantId);
+		return Success(list, "Ödeme yöntemleri getirildi", "Payment methods retrieved");
+	}
+
+	[HttpPut("SetPaymentMethods")]
+	[RequirePermission(Permissions.Restaurants.UpdateOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> SetPaymentMethods([FromBody] PaymentMethodsUpdateDto dto)
+	{
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(dto.RestaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) return NotFound("Restoran bulunamadı", "Restaurant not found");
+			if (ownerId != currentUserId && dealerId != currentUserId) return Forbid();
+		}
+		var (ok, error) = await _restaurantService.SetRestaurantPaymentMethodsAsync(dto);
+		if (!ok)
+		{
+			if (error == "Restoran bulunamadı.") return NotFound(error, "Restaurant not found.");
+			return BadRequest(error ?? "Geçersiz istek", "Invalid request");
+		}
+		var list = await _restaurantService.GetRestaurantPaymentMethodsAsync(dto.RestaurantId);
+		return Success(list, "Ödeme yöntemleri güncellendi", "Payment methods updated");
+	}
+
 
 
 

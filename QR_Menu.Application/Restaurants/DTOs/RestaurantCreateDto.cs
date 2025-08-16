@@ -30,6 +30,8 @@ public class RestaurantCreateDto
     
     public bool IsActive { get; set; } = true;
     
+    public int? ThemeId { get; set; }
+    
     // Image properties (for form-data)
     public IFormFile? Image { get; set; }
 } 

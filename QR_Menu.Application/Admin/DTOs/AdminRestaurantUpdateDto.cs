@@ -22,4 +22,5 @@ public class AdminRestaurantUpdateDto
     public bool? Hide { get; set; }
     public Guid? UserId { get; set; } // Allow admin to change owner
     public Guid? DealerId { get; set; } // Allow admin to change dealer
+    public int? ThemeId { get; set; }
 } 

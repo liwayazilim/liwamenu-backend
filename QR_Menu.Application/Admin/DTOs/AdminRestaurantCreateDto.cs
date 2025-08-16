@@ -22,4 +22,5 @@ public class AdminRestaurantCreateDto
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; } = false;
+    public int ThemeId { get; set; } = 0;
 } 

@@ -312,6 +312,7 @@ public class AdminService
                 Slogan1 = r.Slogan1,
                 Slogan2 = r.Slogan2,
                 Hide = r.Hide,
+                ThemeId = r.ThemeId,
                 CreatedDateTime = r.CreatedDateTime,
                 LastUpdateDateTime = r.LastUpdateDateTime,
 
@@ -392,6 +393,7 @@ public class AdminService
             Slogan1 = restaurant.Slogan1,
             Slogan2 = restaurant.Slogan2,
             Hide = restaurant.Hide,
+            ThemeId = restaurant.ThemeId,
             UserId = restaurant.UserId,
             OwnerName = restaurant.User.FirstName + " " + restaurant.User.LastName,
             OwnerEmail = restaurant.User.Email,
@@ -506,6 +508,12 @@ public class AdminService
         if (request.Slogan1 != null) restaurant.Slogan1 = request.Slogan1;
         if (request.Slogan2 != null) restaurant.Slogan2 = request.Slogan2;
         if (request.Hide.HasValue) restaurant.Hide = request.Hide.Value;
+        if (request.ThemeId.HasValue)
+        {
+            if (request.ThemeId.Value < 0 || request.ThemeId.Value > 14)
+                return (false, "Geçersiz tema. Tema 0-14 aralığında olmalıdır.");
+            restaurant.ThemeId = request.ThemeId.Value;
+        }
 
         // Update dealer assignment if provided
         if (request.DealerId.HasValue)

@@ -26,4 +26,6 @@ public class RestaurantUpdateDto
     
     // Image properties (for form-data) - optional
     public IFormFile? Image { get; set; }
+    
+    public int? ThemeId { get; set; }
 } 
