@@ -12,8 +12,8 @@ public class Restaurant
     public string District { get; set; } = string.Empty;
     public string? Neighbourhood { get; set; }
     public string Address { get; set; } = string.Empty;
-    public double Lat { get; set; }
-    public double Lng { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
     public bool IsActive { get; set; } = true;
     public string? WorkingHours { get; set; }
     public ICollection<PaymentMethod>? PaymentMethods { get; set; }
@@ -25,6 +25,7 @@ public class Restaurant
     public string? Slogan1 { get; set; }
     public string? Slogan2 { get; set; }
     public bool Hide { get; set; } = false;
+    public string? SocialLinks { get; set; }
     
     // Image properties
     public byte[]? ImageData { get; set; }

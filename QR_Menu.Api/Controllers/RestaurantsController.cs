@@ -344,6 +344,110 @@ public async Task<ActionResult<ResponsBase>> GetRestaurantById([FromQuery] Guid 
         return Success("Restoran transfer edildi.", "Restaurant has been transferred.");
     }
 
+	[HttpGet("GetWorkingHours")]
+	[RequirePermission(Permissions.Restaurants.ViewOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> GetWorkingHours([FromQuery] Guid restaurantId)
+	{
+		// Managers can access any, others must own/deal
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(restaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) return NotFound("Restoran bulunamadı", "Restaurant not found");
+			if (ownerId != currentUserId && dealerId != currentUserId) return Forbid();
+		}
+		var data = await _restaurantService.GetWorkingHoursAsync(restaurantId);
+		if (data == null) return NotFound("Restoran bulunamadı", "Restaurant not found");
+		return Success(data, "Çalışma saatleri getirildi", "Working hours retrieved");
+	}
+
+	[HttpPut("SetWorkingHours")]
+	[RequirePermission(Permissions.Restaurants.UpdateOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> SetWorkingHours([FromBody] WorkingHoursUpdateDto dto)
+	{
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(dto.RestaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) return NotFound("Restoran bulunamadı", "Restaurant not found");
+			if (ownerId != currentUserId && dealerId != currentUserId) return Forbid();
+		}
+		var (ok, error) = await _restaurantService.SetWorkingHoursAsync(dto);
+		if (!ok)
+		{
+			if (error == "Restoran bulunamadı.") return NotFound(error, "Restaurant not found.");
+			return BadRequest(error ?? "Geçersiz istek", "Invalid request");
+		}
+		var read = await _restaurantService.GetWorkingHoursAsync(dto.RestaurantId);
+		return Success(read!, "Çalışma saatleri güncellendi", "Working hours updated");
+	}
+
+	[HttpGet("GetSocialLinks")]
+	[RequirePermission(Permissions.Restaurants.ViewOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> GetSocialLinks([FromQuery] Guid restaurantId)
+	{
+		// Managers can access any, others must own/deal
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(restaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) return NotFound("Restoran bulunamadı", "Restaurant not found");
+			if (ownerId != currentUserId && dealerId != currentUserId) return Forbid();
+		}
+		var data = await _restaurantService.GetSocialLinksAsync(restaurantId);
+		if (data == null) return NotFound("Restoran bulunamadı", "Restaurant not found");
+		return Success(data, "Sosyal medya linkleri getirildi", "Social links retrieved");
+	}
+
+	[HttpPut("SetSocialLinks")]
+	[RequirePermission(Permissions.Restaurants.UpdateOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> SetSocialLinks([FromBody] SocialLinksUpdateDto dto)
+	{
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(dto.RestaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) return NotFound("Restoran bulunamadı", "Restaurant not found");
+			if (ownerId != currentUserId && dealerId != currentUserId) return Forbid();
+		}
+		var (ok, error) = await _restaurantService.SetSocialLinksAsync(dto);
+		if (!ok)
+		{
+			if (error == "Restoran bulunamadı.") return NotFound(error, "Restaurant not found.");
+			return BadRequest(error ?? "Geçersiz istek", "Invalid request");
+		}
+		var read = await _restaurantService.GetSocialLinksAsync(dto.RestaurantId);
+		return Success(read!, "Sosyal medya linkleri güncellendi", "Social links updated");
+	}
+
 
 
 

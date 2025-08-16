@@ -5,6 +5,8 @@ using QR_Menu.Domain;
 using QR_Menu.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using QR_Menu.Application.Common;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace QR_Menu.Application.Restaurants;
 
@@ -30,6 +32,106 @@ public class RestaurantService
             .Where(r => r.Id == restaurantId)
             .Select(r => new ValueTuple<Guid?, Guid?>(r.UserId, r.DealerId))
             .FirstOrDefaultAsync();
+    }
+
+    public async Task<WorkingHoursReadDto?> GetWorkingHoursAsync(Guid restaurantId)
+    {
+        var entity = await _context.Restaurants.AsNoTracking().FirstOrDefaultAsync(r => r.Id == restaurantId);
+        if (entity == null) return null;
+        var dto = new WorkingHoursReadDto { RestaurantId = restaurantId };
+        if (!string.IsNullOrWhiteSpace(entity.WorkingHours))
+        {
+            try
+            {
+                dto.Days = JsonSerializer.Deserialize<List<WorkingHoursDayDto>>(entity.WorkingHours!) ?? new();
+            }
+            catch
+            {
+                dto.Days = new();
+            }
+        }
+        return dto;
+    }
+
+    private static bool IsValidTime(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        // HH:mm 24h
+        return Regex.IsMatch(value, "^(?:[01]\\d|2[0-3]):[0-5]\\d$");
+    }
+
+    public async Task<(bool ok, string? error)> SetWorkingHoursAsync(WorkingHoursUpdateDto dto)
+    {
+        var entity = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
+        if (entity == null) return (false, "Restoran bulunamadı.");
+
+        // Basic validations
+        if (dto.Days == null || dto.Days.Count == 0) return (false, "Geçersiz çalışma saatleri verisi.");
+        var daySet = new HashSet<int>();
+        foreach (var d in dto.Days)
+        {
+            if (d.Day < 1 || d.Day > 7) return (false, "Gün 1-7 aralığında olmalıdır.");
+            if (!daySet.Add(d.Day)) return (false, "Aynı gün birden fazla kez gönderilemez.");
+            if (!d.IsClosed)
+            {
+                if (!IsValidTime(d.Open) || !IsValidTime(d.Close)) return (false, "Saat formatı HH:mm olmalıdır.");
+                if (TimeOnly.Parse(d.Open!) >= TimeOnly.Parse(d.Close!)) return (false, "Açılış saati kapanıştan önce olmalıdır.");
+            }
+        }
+
+        entity.WorkingHours = JsonSerializer.Serialize(dto.Days);
+        entity.LastUpdateDateTime = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
+
+    public async Task<SocialLinksReadDto?> GetSocialLinksAsync(Guid restaurantId)
+    {
+        var entity = await _context.Restaurants.AsNoTracking().FirstOrDefaultAsync(r => r.Id == restaurantId);
+        if (entity == null) return null ;
+        var result = new SocialLinksReadDto { RestaurantId = restaurantId };
+        if (!string.IsNullOrWhiteSpace(entity.SocialLinks))
+        {
+            try
+            {
+                var dict = JsonSerializer.Deserialize<Dictionary<string, string?>>(entity.SocialLinks!) ?? new();
+                dict.TryGetValue("facebook", out var fb);
+                dict.TryGetValue("instagram", out var ig);
+                dict.TryGetValue("tiktok", out var tt);
+                dict.TryGetValue("youtube", out var yt);
+                dict.TryGetValue("whatsapp", out var wa);
+                result.FacebookUrl = fb;
+                result.InstagramUrl = ig;
+                result.TiktokUrl = tt;
+                result.YoutubeUrl = yt;
+                result.WhatsappUrl = wa;
+            }
+            catch
+            {
+                // ignore malformed json and return empty
+            
+            }
+        }
+        return result;
+    }
+
+    public async Task<(bool ok, string? error)> SetSocialLinksAsync(SocialLinksUpdateDto dto)
+    {
+        var entity = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
+        if (entity == null) return (false, "Restoran bulunamadı.");
+
+        var dict = new Dictionary<string, string?>
+        {
+            ["facebook"] = dto.FacebookUrl,
+            ["instagram"] = dto.InstagramUrl,
+            ["tiktok"] = dto.TiktokUrl,
+            ["youtube"] = dto.YoutubeUrl,
+            ["whatsapp"] = dto.WhatsappUrl
+        };
+        entity.SocialLinks = JsonSerializer.Serialize(dict);
+        entity.LastUpdateDateTime = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return (true, null);
     }
 
     public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? searchKey = null, string? city = null, bool? active = null, int pageNumber = 1, int pageSize = 10, string? district = null, string? neighbourhood = null)
@@ -124,8 +226,8 @@ public class RestaurantService
             District = dto.District,
             Neighbourhood = dto.Neighbourhood,
             Address = dto.Address,
-            Lat = dto.Latitude,
-            Lng = dto.Longitude,
+            Latitude = dto.Latitude,
+            Longitude = dto.Longitude,
             IsActive = dto.IsActive,
             CreatedDateTime = DateTime.UtcNow,
             LastUpdateDateTime = DateTime.UtcNow
@@ -219,10 +321,10 @@ public class RestaurantService
             entity.Address = dto.Address;
         
         // Only update coordinates if they are provided and valid
-        if (dto.Lat.HasValue && dto.Lat.Value != 0)
-            entity.Lat = dto.Lat.Value;
-        if (dto.Lng.HasValue && dto.Lng.Value != 0)
-            entity.Lng = dto.Lng.Value;
+        if (dto.Latitude.HasValue && dto.Latitude.Value != 0)
+            entity.Latitude = dto.Latitude.Value;
+        if (dto.Longitude.HasValue && dto.Longitude.Value != 0)
+            entity.Longitude = dto.Longitude.Value;
             
         entity.LastUpdateDateTime = DateTime.UtcNow;
 

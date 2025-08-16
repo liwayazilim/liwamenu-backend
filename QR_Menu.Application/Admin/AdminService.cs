@@ -300,8 +300,8 @@ public class AdminService
                 District = r.District,
                 Neighbourhood = r.Neighbourhood,
                 Address = r.Address,
-                Lat = r.Lat,
-                Lng = r.Lng,
+                Latitude = r.Latitude,
+                Longitude = r.Longitude,
                 IsActive = r.IsActive,
                 WorkingHours = r.WorkingHours,
                 MinDistance = r.MinDistance,
@@ -380,8 +380,8 @@ public class AdminService
             District = restaurant.District,
             Neighbourhood = restaurant.Neighbourhood,
             Address = restaurant.Address,
-            Lat = restaurant.Lat,
-            Lng = restaurant.Lng,
+            Latitude = restaurant.Latitude,
+            Longitude = restaurant.Longitude,
             IsActive = restaurant.IsActive,
             WorkingHours = restaurant.WorkingHours,
             MinDistance = restaurant.MinDistance,
@@ -494,8 +494,8 @@ public class AdminService
         if (request.District != null) restaurant.District = request.District;
         if (request.Neighbourhood != null) restaurant.Neighbourhood = request.Neighbourhood;
         if (request.Address != null) restaurant.Address = request.Address;
-        if (request.Lat.HasValue) restaurant.Lat = request.Lat.Value;
-        if (request.Lng.HasValue) restaurant.Lng = request.Lng.Value;
+        if (request.Latitude.HasValue) restaurant.Latitude = request.Latitude.Value;
+        if (request.Longitude.HasValue) restaurant.Longitude = request.Longitude.Value;
         if (request.IsActive.HasValue) restaurant.IsActive = request.IsActive.Value;
         if (request.WorkingHours != null) restaurant.WorkingHours = request.WorkingHours;
         if (request.MinDistance.HasValue) restaurant.MinDistance = request.MinDistance.Value;

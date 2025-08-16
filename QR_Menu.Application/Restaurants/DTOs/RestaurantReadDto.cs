@@ -11,8 +11,8 @@ public class RestaurantReadDto
     public string District { get; set; } = string.Empty;
     public string? Neighbourhood { get; set; }
     public string Address { get; set; } = string.Empty;
-    public double Lat { get; set; }
-    public double Lng { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
     public bool IsActive { get; set; }
     public string? WorkingHours { get; set; }
     public double? MinDistance { get; set; }

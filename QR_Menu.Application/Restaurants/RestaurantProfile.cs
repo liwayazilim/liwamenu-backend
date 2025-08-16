@@ -13,8 +13,8 @@ public class RestaurantProfile : Profile
                 !string.IsNullOrEmpty(src.ImageFileName) ? $"/images/restaurants/{src.ImageFileName}" : null));
             
         CreateMap<RestaurantCreateDto, Restaurant>()
-            .ForMember(dest => dest.Lat, opt => opt.MapFrom(src => src.Latitude))
-            .ForMember(dest => dest.Lng, opt => opt.MapFrom(src => src.Longitude))
+            .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.Latitude))
+            .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.Longitude))
             .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber))
             .ForMember(dest => dest.ImageData, opt => opt.Ignore())
             .ForMember(dest => dest.ImageFileName, opt => opt.Ignore())

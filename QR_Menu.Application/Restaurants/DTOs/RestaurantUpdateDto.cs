@@ -20,9 +20,9 @@ public class RestaurantUpdateDto
     
     public string? Address { get; set; }
     
-    public double? Lat { get; set; }
+    public double? Latitude { get; set; }
     
-    public double? Lng { get; set; }
+    public double? Longitude { get; set; }
     
     // Image properties (for form-data) - optional
     public IFormFile? Image { get; set; }
