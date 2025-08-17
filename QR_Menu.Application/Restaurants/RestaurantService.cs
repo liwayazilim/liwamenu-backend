@@ -1,7 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QR_Menu.Application.Restaurants.DTOs;
-
 using QR_Menu.Domain;
 using QR_Menu.Infrastructure;
 using Microsoft.AspNetCore.Identity;
