@@ -498,6 +498,39 @@ public async Task<ActionResult<ResponsBase>> GetRestaurantById([FromQuery] Guid 
 		return Success(list, "Ödeme yöntemleri güncellendi", "Payment methods updated");
 	}
 
+	[HttpPost("AddPaymentMethod")]
+	[RequirePermission(Permissions.Restaurants.UpdateOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> AddPaymentMethod([FromBody] AddPaymentMethodToRestaurantDto dto)
+	{
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(dto.RestaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) return NotFound("Restoran bulunamadı", "Restaurant not found");
+			if (ownerId != currentUserId && dealerId != currentUserId) return Forbid();
+		}
+		
+		var (ok, error) = await _restaurantService.AddPaymentMethodToRestaurantAsync(dto);
+		if (!ok)
+		{
+			if (error == "Restoran bulunamadı.") return NotFound(error, "Restaurant not found.");
+			if (error.Contains("zaten restoranda mevcut")) return BadRequest(error, "Payment method already exists in restaurant");
+			return BadRequest(error ?? "Geçersiz istek", "Invalid request");
+		}
+		
+		// Return updated payment methods list
+		var list = await _restaurantService.GetRestaurantPaymentMethodsAsync(dto.RestaurantId);
+		return Success(list, "Ödeme yöntemi başarıyla eklendi", "Payment method added successfully");
+	}
+
 
 
 

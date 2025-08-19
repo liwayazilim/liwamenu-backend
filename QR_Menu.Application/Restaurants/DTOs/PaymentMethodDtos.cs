@@ -15,4 +15,15 @@ public class PaymentMethodsUpdateDto
     public Guid RestaurantId { get; set; }
     [Required]
     public List<Guid> MethodIds { get; set; } = new();
+}
+
+// New DTO for adding payment methods to restaurants
+public class AddPaymentMethodToRestaurantDto
+{
+    [Required]
+    public Guid RestaurantId { get; set; }
+    
+    [Required]
+    [StringLength(100, ErrorMessage = "Payment method name cannot exceed 100 characters")]
+    public string PaymentMethodName { get; set; } = string.Empty;
 } 

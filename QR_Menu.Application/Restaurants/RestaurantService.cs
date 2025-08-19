@@ -185,6 +185,58 @@ public class RestaurantService
         return (true, null);
     }
 
+    public async Task<(bool ok, string? error)> AddPaymentMethodToRestaurantAsync(AddPaymentMethodToRestaurantDto dto)
+    {
+        var restaurant = await _context.Restaurants
+            .Include(r => r.PaymentMethods)
+            .FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
+        
+        if (restaurant == null) 
+            return (false, "Restoran bulunamadı.");
+
+        // Check if payment method with this name already exists globally
+        var existingPaymentMethod = await _context.PaymentMethods
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pm => pm.Name.ToLower() == dto.PaymentMethodName.ToLower());
+
+        PaymentMethod paymentMethod;
+        
+        if (existingPaymentMethod != null)
+        {
+            // Use existing payment method
+            paymentMethod = existingPaymentMethod;
+            
+            // Check if restaurant already has this payment method
+            if (restaurant.PaymentMethods != null && 
+                restaurant.PaymentMethods.Any(pm => pm.Id == existingPaymentMethod.Id))
+            {
+                return (false, "Bu ödeme yöntemi zaten restoranda mevcut.");
+            }
+        }
+        else
+        {
+            // Create new payment method
+            paymentMethod = new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = dto.PaymentMethodName,
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            };
+            
+            _context.PaymentMethods.Add(paymentMethod);
+        }
+
+        // Add to restaurant
+        restaurant.PaymentMethods ??= new List<PaymentMethod>();
+        restaurant.PaymentMethods.Add(paymentMethod);
+        restaurant.LastUpdateDateTime = DateTime.UtcNow;
+        
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
+
     public async Task<(List<RestaurantReadDto> Restaurants, int TotalCount)> GetAllAsync(string? searchKey = null, string? city = null, bool? active = null, int pageNumber = 1, int pageSize = 10, string? district = null, string? neighbourhood = null)
     {
         var query = _context.Restaurants.AsNoTracking();
