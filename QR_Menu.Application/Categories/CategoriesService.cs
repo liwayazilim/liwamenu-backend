@@ -47,15 +47,13 @@ public class CategoriesService
     {
         var restaurantExists = await _context.Restaurants.AnyAsync(r => r.Id == dto.RestaurantId);
         if (!restaurantExists) return (null, "Restoran bulunamadı.");
-        var category = new Category
-        {
-            Id = Guid.NewGuid(),
-            RestaurantId = dto.RestaurantId,
-            Name = dto.Name,
-            IsActive = dto.IsActive
-        };
+        
+        var category = _mapper.Map<Category>(dto);
+        category.Id = Guid.NewGuid();
+        
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
+        
         category = await _context.Categories.Include(c => c.Products).FirstAsync(c => c.Id == category.Id);
         return (_mapper.Map<CategoryReadDto>(category), null);
     }
@@ -64,8 +62,16 @@ public class CategoriesService
     {
         var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
         if (category == null) return false;
-        if (!string.IsNullOrWhiteSpace(dto.Name)) category.Name = dto.Name;
-        if (dto.IsActive.HasValue) category.IsActive = dto.IsActive.Value;
+        
+        // Update only the fields that are provided (not null)
+        if (!string.IsNullOrWhiteSpace(dto.Name)) 
+            category.Name = dto.Name;
+        
+        if (dto.Icon != null) 
+            category.Icon = dto.Icon;
+        
+        category.LastUpdateDateTime = DateTime.UtcNow;
+        
         await _context.SaveChangesAsync();
         return true;
     }

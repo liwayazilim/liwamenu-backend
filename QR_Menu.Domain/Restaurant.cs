@@ -39,4 +39,5 @@ public class Restaurant
     public License? License { get; set; }
     public ICollection<Category>? Categories { get; set; }
     public ICollection<Product>? Products { get; set; }
+    public ICollection<OrderTag>? OrderTags { get; set; }
 } 

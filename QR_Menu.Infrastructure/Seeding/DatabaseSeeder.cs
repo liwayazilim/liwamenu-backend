@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using QR_Menu.Domain;
@@ -23,9 +24,12 @@ public class DatabaseSeeder
         using var scope = _serviceProvider.CreateScope();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         await SeedRolesAsync(roleManager);
         await SeedInitialUsersAsync(userManager);
+        await SeedPaymentMethodsAsync(context);
+        await SeedOrderTagsAsync(context);
     }
 
    
@@ -114,6 +118,12 @@ public class DatabaseSeeder
     
     private async Task SeedUserAsync(UserManager<User> userManager, User user, string password, string roleName)
     {
+        if (string.IsNullOrEmpty(user.Email))
+        {
+            _logger.LogWarning($"User {user.UserName} has no email address, skipping user creation");
+            return;
+        }
+        
         var existingUser = await userManager.FindByEmailAsync(user.Email);
         if (existingUser == null)
         {
@@ -138,5 +148,205 @@ public class DatabaseSeeder
                 _logger.LogInformation($"Added role {roleName} to existing user: {existingUser.Email}");
             }
         }
+    }
+
+    private async Task SeedPaymentMethodsAsync(AppDbContext context)
+    {
+        _logger.LogInformation("Seeding payment methods...");
+
+        var defaultPaymentMethods = new[]
+        {
+            new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = "Nakit",
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = "Kredi Kartı",
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = "Banka Kartı",
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = "Havale/EFT",
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = "Metropol",
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = "Multinet",
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new PaymentMethod
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sodexo",
+                IsActive = true,
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            }
+        };
+
+        foreach (var paymentMethod in defaultPaymentMethods)
+        {
+            var existingMethod = await context.PaymentMethods
+                .FirstOrDefaultAsync(pm => pm.Name.ToLower() == paymentMethod.Name.ToLower());
+            
+            if (existingMethod == null)
+            {
+                context.PaymentMethods.Add(paymentMethod);
+                _logger.LogInformation($"Created payment method: {paymentMethod.Name}");
+            }
+        }
+
+        await context.SaveChangesAsync();
+        _logger.LogInformation("Payment methods seeding completed.");
+    }
+
+    private async Task SeedOrderTagsAsync(AppDbContext context)
+    {
+        _logger.LogInformation("Seeding order tags...");
+
+        // Get the first restaurant to associate tags with
+        var firstRestaurant = await context.Restaurants.FirstOrDefaultAsync();
+        if (firstRestaurant == null)
+        {
+            _logger.LogWarning("No restaurants found. Skipping order tags seeding.");
+            return;
+        }
+
+        var defaultOrderTags = new[]
+        {
+            // Order-level tags
+            new OrderTag
+            {
+                Id = Guid.NewGuid(),
+                RestaurantId = firstRestaurant.Id,
+                Name = "Takeaway",
+                Description = "Order for takeaway",
+                TagType = TagType.OrderLevel,
+                IsActive = true,
+                DisplayOrder = 1,
+                Color = "#28a745",
+                Icon = "📦",
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new OrderTag
+            {
+                Id = Guid.NewGuid(),
+                RestaurantId = firstRestaurant.Id,
+                Name = "in-resto",
+                Description = "Order for dining in restaurant",
+                TagType = TagType.OrderLevel,
+                IsActive = true,
+                DisplayOrder = 2,
+                Color = "#007bff",
+                Icon = "🍽️",
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            
+            // Item-level tags
+            new OrderTag
+            {
+                Id = Guid.NewGuid(),
+                RestaurantId = firstRestaurant.Id,
+                Name = "No Onions",
+                Description = "Remove onions from the item",
+                TagType = TagType.ItemLevel,
+                IsActive = true,
+                DisplayOrder = 4,
+                Color = "#dc3545",
+                Icon = "🚫🧅",
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new OrderTag
+            {
+                Id = Guid.NewGuid(),
+                RestaurantId = firstRestaurant.Id,
+                Name = "Extra Cheese",
+                Description = "Add extra cheese to the item",
+                TagType = TagType.ItemLevel,
+                IsActive = true,
+                DisplayOrder = 5,
+                Color = "#fd7e14",
+                Icon = "🧀",
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new OrderTag
+            {
+                Id = Guid.NewGuid(),
+                RestaurantId = firstRestaurant.Id,
+                Name = "Spicy",
+                Description = "Make the item spicy",
+                TagType = TagType.ItemLevel,
+                IsActive = true,
+                DisplayOrder = 6,
+                Color = "#e83e8c",
+                Icon = "🌶️",
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            },
+            new OrderTag
+            {
+                Id = Guid.NewGuid(),
+                RestaurantId = firstRestaurant.Id,
+                Name = "Vegetarian",
+                Description = "Vegetarian option",
+                TagType = TagType.ItemLevel,
+                IsActive = true,
+                DisplayOrder = 7,
+                Color = "#20c997",
+                Icon = "🥬",
+                CreatedDateTime = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
+            }
+        };
+
+        foreach (var orderTag in defaultOrderTags)
+        {
+            var existingTag = await context.OrderTags
+                .FirstOrDefaultAsync(ot => ot.RestaurantId == orderTag.RestaurantId && 
+                                         ot.Name.ToLower() == orderTag.Name.ToLower());
+            
+            if (existingTag == null)
+            {
+                context.OrderTags.Add(orderTag);
+                _logger.LogInformation($"Created order tag: {orderTag.Name} ({orderTag.TagType})");
+            }
+        }
+
+        await context.SaveChangesAsync();
+        _logger.LogInformation("Order tags seeding completed.");
     }
 } 

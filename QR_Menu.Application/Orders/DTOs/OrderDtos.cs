@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
-
-namespace QR_Menu.Application.Orders.DTOs;
+using QR_Menu.Domain;
+namespace QR_Menu.Application.Orders;
 
 public class OrderCreateDto
 {
@@ -8,9 +8,10 @@ public class OrderCreateDto
     public Guid RestaurantId { get; set; }
     public string? CustomerName { get; set; }
     public string? CustomerTel { get; set; }
-    public bool IsInPerson { get; set; } = true;
+    public OrderType OrderType { get; set; } = OrderType.InPerson;
     [Required]
     public List<OrderCreateItemDto> Items { get; set; } = new();
+    public string? CustomerNote { get; set; }
 }
 
 public class OrderCreateItemDto
@@ -28,12 +29,29 @@ public class OrderReadDto
     public Guid RestaurantId { get; set; }
     public string RestaurantName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public OrderStatus Status { get; set; }
+    public OrderType OrderType { get; set; }
     public string? CustomerName { get; set; }
     public string? CustomerTel { get; set; }
-    public bool IsInPerson { get; set; }
+    public string? CustomerEmail { get; set; }
+    public string? CustomerAddress { get; set; }
+    public string? CustomerNote { get; set; }
+    public decimal SubTotal { get; set; }
+    public decimal TaxAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal TotalAmount { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public DateTime? EstimatedReadyTime { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public string? CancellationReason { get; set; }
     public List<OrderItemReadDto> Items { get; set; } = new();
+    
+    // Computed properties
+    public bool IsCompleted => Status == OrderStatus.Completed;
+    public bool IsCancelled => Status == OrderStatus.Cancelled;
+    public bool IsActive => !IsCompleted && !IsCancelled;
+    public TimeSpan? ProcessingTime => CompletedAt?.Subtract(CreatedAt);
 }
 
 public class OrderItemReadDto

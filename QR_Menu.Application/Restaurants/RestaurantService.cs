@@ -136,53 +136,96 @@ public class RestaurantService
 
     public async Task<List<PaymentMethodOptionDto>> GetRestaurantPaymentMethodsAsync(Guid restaurantId)
     {
-        // All globally active methods
-        var methods = await _context.PaymentMethods.AsNoTracking()
+        // Get all globally active payment methods
+        var allMethods = await _context.PaymentMethods
+            .AsNoTracking()
             .Where(pm => pm.IsActive)
             .OrderBy(pm => pm.Name)
-            .Select(pm => new { pm.Id, pm.Name })
             .ToListAsync();
 
-        // Current enabled set for this restaurant
-        var enabledIds = await _context.Restaurants
+        // Get enabled payment methods for this restaurant
+        var enabledPaymentMethods = await _context.Restaurants
+            .AsNoTracking()
             .Where(r => r.Id == restaurantId)
-            .SelectMany(r => r.PaymentMethods!.Select(pm => pm.Id))
-            .ToListAsync();
-
-        var set = enabledIds.ToHashSet();
-        return methods.Select(m => new PaymentMethodOptionDto
-        {
-            Id = m.Id,
-            Name = m.Name,
-            Enabled = set.Contains(m.Id)
-        }).ToList();
-    }
-
-    public async Task<(bool ok, string? error)> SetRestaurantPaymentMethodsAsync(PaymentMethodsUpdateDto dto)
-    {
-        var restaurant = await _context.Restaurants
             .Include(r => r.PaymentMethods)
-            .FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
-        if (restaurant == null) return (false, "Restoran bulunamadı.");
-
-        // Only allow IDs that exist and are globally active
-        var validIds = await _context.PaymentMethods
-            .Where(pm => pm.IsActive && dto.MethodIds.Contains(pm.Id))
+            .SelectMany(r => r.PaymentMethods!)
             .Select(pm => pm.Id)
             .ToListAsync();
 
-        // Replace set
-        restaurant.PaymentMethods ??= new List<PaymentMethod>();
-        restaurant.PaymentMethods.Clear();
-        if (validIds.Count > 0)
+        var enabledIds = enabledPaymentMethods.ToHashSet();
+
+        // Build the result combining all methods with their enabled status for this restaurant
+        var result = allMethods.Select(method => new PaymentMethodOptionDto
         {
-            var attachList = await _context.PaymentMethods.Where(pm => validIds.Contains(pm.Id)).ToListAsync();
-            foreach (var m in attachList)
-                restaurant.PaymentMethods.Add(m);
+            Id = method.Id,
+            Name = method.Name,
+            Enabled = enabledIds.Contains(method.Id)
+        }).ToList();
+
+        return result;
+    }
+
+
+
+    public async Task<(bool ok, string? error)> SetRestaurantPaymentMethodsAsync(PaymentMethodsUpdateDto dto)
+    {
+        try
+        {
+            // Get the restaurant with payment methods
+            var restaurant = await _context.Restaurants
+                .Include(r => r.PaymentMethods)
+                .FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
+            
+            if (restaurant == null) 
+                return (false, "Restoran bulunamadı.");
+
+            // Validate that all provided IDs exist and are globally active
+            var validIds = await _context.PaymentMethods
+                .Where(pm => pm.IsActive && dto.MethodIds.Contains(pm.Id))
+                .Select(pm => pm.Id)
+                .ToListAsync();
+
+            if (validIds.Count != dto.MethodIds.Count)
+            {
+                return (false, "Bazı ödeme yöntemleri geçersiz veya aktif değil.");
+            }
+
+            // Get current enabled payment method IDs for this restaurant
+            var currentEnabledIds = restaurant.PaymentMethods?.Select(pm => pm.Id).ToHashSet() ?? new HashSet<Guid>();
+            
+            // Get the payment methods to add
+            var paymentMethodsToAdd = await _context.PaymentMethods
+                .Where(pm => validIds.Contains(pm.Id) && !currentEnabledIds.Contains(pm.Id))
+                .ToListAsync();
+            
+            // Get the payment methods to remove
+            var paymentMethodsToRemove = restaurant.PaymentMethods?
+                .Where(pm => !validIds.Contains(pm.Id))
+                .ToList() ?? new List<PaymentMethod>();
+            
+            // Remove payment methods that are no longer enabled
+            foreach (var paymentMethod in paymentMethodsToRemove)
+            {
+                restaurant.PaymentMethods!.Remove(paymentMethod);
+            }
+            
+            // Add new payment methods
+            foreach (var paymentMethod in paymentMethodsToAdd)
+            {
+                restaurant.PaymentMethods ??= new List<PaymentMethod>();
+                restaurant.PaymentMethods.Add(paymentMethod);
+            }
+            
+            restaurant.LastUpdateDateTime = DateTime.UtcNow;
+            
+            await _context.SaveChangesAsync();
+            
+            return (true, null);
         }
-        restaurant.LastUpdateDateTime = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-        return (true, null);
+        catch (Exception ex)
+        {
+            return (false, $"Ödeme yöntemleri güncellenirken hata oluştu: {ex.Message}");
+        }
     }
 
     public async Task<(bool ok, string? error)> AddPaymentMethodToRestaurantAsync(AddPaymentMethodToRestaurantDto dto)
@@ -522,5 +565,75 @@ public class RestaurantService
         _context.Restaurants.Remove(restaurant);
         await _context.SaveChangesAsync();
         return (true, null);
+    }
+
+    public async Task<(RestaurantSettingsResponseDto? Settings, string? ErrorMessage)> UpdateSettingsAsync(RestaurantSettingsUpdateDto dto)
+    {
+        var entity = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
+        if (entity == null)
+            return (null, "Restoran bulunamadı.");
+
+        // Update only the fields that are provided (not null)
+        if (dto.MinDistance.HasValue)
+            entity.MinDistance = dto.MinDistance.Value;
+        
+        if (dto.GoogleAnalytics != null)
+            entity.GoogleAnalytics = dto.GoogleAnalytics;
+        
+        if (dto.DefaultLang != null)
+            entity.DefaultLang = dto.DefaultLang;
+        
+        if (dto.InPersonOrder.HasValue)
+            entity.InPersonOrder = dto.InPersonOrder.Value;
+        
+        if (dto.OnlineOrder.HasValue)
+            entity.OnlineOrder = dto.OnlineOrder.Value;
+        
+        if (dto.Slogan1 != null)
+            entity.Slogan1 = dto.Slogan1;
+        
+        if (dto.Slogan2 != null)
+            entity.Slogan2 = dto.Slogan2;
+        
+        if (dto.Hide.HasValue)
+            entity.Hide = dto.Hide.Value;
+
+        // Update timestamp
+        entity.LastUpdateDateTime = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        // Return updated settings
+        var responseDto = _mapper.Map<RestaurantSettingsResponseDto>(entity);
+        return (responseDto, null);
+    }
+
+    public async Task<(RestaurantThemeResponseDto? Theme, string? ErrorMessage)> UpdateThemeAsync(RestaurantThemeUpdateDto dto)
+    {
+        var entity = await _context.Restaurants.FirstOrDefaultAsync(r => r.Id == dto.RestaurantId);
+        if (entity == null)
+            return (null, "Restoran bulunamadı.");
+
+        // Validate theme ID
+        if (dto.ThemeId < 0 || dto.ThemeId > 14)
+        {
+            return (null, "Geçersiz tema ID. Tema ID 0-14 aralığında olmalıdır.");
+        }
+
+        // Update theme using manual mapping (no AutoMapper)
+        entity.ThemeId = dto.ThemeId;
+        entity.LastUpdateDateTime = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        // Return response using manual mapping
+        var responseDto = new RestaurantThemeResponseDto
+        {
+            RestaurantId = entity.Id,
+            ThemeId = entity.ThemeId,
+            LastUpdateDateTime = entity.LastUpdateDateTime
+        };
+
+        return (responseDto, null);
     }
 } 

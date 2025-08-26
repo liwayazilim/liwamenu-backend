@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using QR_Menu.Application.Orders.DTOs;
+using QR_Menu.Application.Orders;
 using QR_Menu.Domain;
 using QR_Menu.Infrastructure;
 
@@ -38,11 +38,14 @@ public class OrdersService
             Id = Guid.NewGuid(),
             UserId = userId,
             RestaurantId = dto.RestaurantId,
-            CreatedAt = DateTime.UtcNow,
-            Status = OrderStatus.Pending,
             CustomerName = dto.CustomerName,
             CustomerTel = dto.CustomerTel,
-            IsInPerson = dto.IsInPerson,
+            CustomerNote = dto.CustomerNote,
+            OrderType = dto.OrderType,
+            Status = OrderStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            CreatedDateTime = DateTime.UtcNow,
+            LastUpdateDateTime = DateTime.UtcNow,
             Items = new List<OrderItem>()
         };
 
@@ -59,13 +62,25 @@ public class OrdersService
                 OrderId = order.Id,
                 ProductId = product.Id,
                 ProductNameSnapshot = product.Name,
+                ProductDescriptionSnapshot = product.Description,
                 UnitPrice = unitPrice,
+                DiscountedUnitPrice = unitPrice, // No discount initially
                 Quantity = qty,
                 LineTotal = lineTotal,
-                OptionsJson = dtoItem.OptionsJson,
-                CreatedAt = DateTime.UtcNow
+                TaxAmount = 0, // No tax initially
+                FinalLineTotal = lineTotal,
+                // OptionsJson removed - use Tags instead for customization
+                CreatedAt = DateTime.UtcNow,
+                LastUpdateDateTime = DateTime.UtcNow
             });
         }
+
+        // Calculate order totals
+        order.SubTotal = order.Items.Sum(i => i.LineTotal);
+        order.TaxAmount = 0; // No tax initially
+        order.DiscountAmount = 0; // No discount initially
+        order.TotalAmount = order.SubTotal;
+        order.Currency = "TRY";
 
         _context.Orders.Add(order);
         await _context.SaveChangesAsync();

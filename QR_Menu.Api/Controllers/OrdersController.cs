@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using QR_Menu.Application.Common;
 using QR_Menu.Application.Orders;
-using QR_Menu.Application.Orders.DTOs;
 using QR_Menu.Domain.Common;
 using QR_Menu.Infrastructure.Authorization;
 using System.Security.Claims;
 using QR_Menu.Application.Admin;
+using Microsoft.Extensions.Logging;
 
 namespace QR_Menu.Api.Controllers;
 

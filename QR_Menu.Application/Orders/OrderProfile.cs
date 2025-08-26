@@ -1,6 +1,6 @@
 using AutoMapper;
+using QR_Menu.Application.Orders;
 using QR_Menu.Domain;
-using QR_Menu.Application.Orders.DTOs;
 
 namespace QR_Menu.Application.Orders;
 

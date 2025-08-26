@@ -470,6 +470,8 @@ public async Task<ActionResult<ResponsBase>> GetRestaurantById([FromQuery] Guid 
 		return Success(list, "Ödeme yöntemleri getirildi", "Payment methods retrieved");
 	}
 
+
+
 	[HttpPut("SetPaymentMethods")]
 	[RequirePermission(Permissions.Restaurants.UpdateOwn)]
 	[ProducesResponseType(StatusCodes.Status200OK)]
@@ -531,7 +533,85 @@ public async Task<ActionResult<ResponsBase>> GetRestaurantById([FromQuery] Guid 
 		return Success(list, "Ödeme yöntemi başarıyla eklendi", "Payment method added successfully");
 	}
 
+	[HttpPut("UpdateRestaurantSettings")]
+	[RequirePermission(Permissions.Restaurants.UpdateOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> UpdateRestaurantSettings(
+		[FromBody] RestaurantSettingsUpdateDto dto)
+	{
+		// Authorization: Managers can access any restaurant. Owners/Dealers only their own.
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(dto.RestaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) 
+				return NotFound("Restoran bulunamadı", "Restaurant not found");
 
+			var isOwnerOfRestaurant = ownerId == currentUserId;
+			var isDealerOfRestaurant = dealerId.HasValue && dealerId.Value == currentUserId;
+			if (!isOwnerOfRestaurant && !isDealerOfRestaurant)
+				return Forbid();
+		}
 
+		// Update restaurant settings
+		var (settings, errorMessage) = await _restaurantService.UpdateSettingsAsync(dto);
+		if (settings == null)
+		{
+			if (errorMessage == "Restoran bulunamadı.")
+				return NotFound("Restoran bulunamadı", "Restaurant not found");
+			else
+				return BadRequest(errorMessage ?? "Restoran ayarları güncellenirken hata oluştu", "Error occurred while updating restaurant settings");
+		}
+
+		return Success(settings, "Restoran ayarları başarıyla güncellendi", "Restaurant settings updated successfully");
+	}
+
+	[HttpPut("UpdateRestaurantTheme")]
+	[RequirePermission(Permissions.Restaurants.UpdateOwn)]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesResponseType(StatusCodes.Status403Forbidden)]
+	public async Task<ActionResult<ResponsBase>> UpdateRestaurantTheme(
+		[FromBody] RestaurantThemeUpdateDto dto)
+	{
+		// Authorization: Managers can access any restaurant. Owners/Dealers only their own.
+		var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var isManager = roles.Contains(Roles.Manager);
+		if (!isManager)
+		{
+			var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+			if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+				return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+			var (ownerId, dealerId) = await _restaurantService.GetOwnerAndDealerAsync(dto.RestaurantId);
+			if (!ownerId.HasValue && !dealerId.HasValue) 
+				return NotFound("Restoran bulunamadı", "Restaurant not found");
+
+			var isOwnerOfRestaurant = ownerId == currentUserId;
+			var isDealerOfRestaurant = dealerId.HasValue && dealerId.Value == currentUserId;
+			if (!isOwnerOfRestaurant && !isDealerOfRestaurant)
+				return Forbid();
+		}
+
+		// Update restaurant theme
+		var (theme, errorMessage) = await _restaurantService.UpdateThemeAsync(dto);
+		if (theme == null)
+		{
+			if (errorMessage == "Restoran bulunamadı.")
+				return NotFound("Restoran bulunamadı", "Restaurant not found");
+			else
+				return BadRequest(errorMessage ?? "Restoran teması güncellenirken hata oluştu", "Error occurred while updating restaurant theme");
+		}
+
+		return Success(theme, "Restoran teması başarıyla güncellendi", "Restaurant theme updated successfully");
+	}
 } 

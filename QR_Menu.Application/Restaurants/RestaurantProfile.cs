@@ -27,5 +27,29 @@ public class RestaurantProfile : Profile
             .ForMember(dest => dest.ImageContentType, opt => opt.Ignore());
             
         CreateMap<Restaurant, RestaurantUpdateDto>();
+        
+        CreateMap<Restaurant, RestaurantSettingsResponseDto>();
+        CreateMap<RestaurantSettingsUpdateDto, Restaurant>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.UserId, opt => opt.Ignore())
+            .ForMember(dest => dest.DealerId, opt => opt.Ignore())
+            .ForMember(dest => dest.LicenseId, opt => opt.Ignore())
+            .ForMember(dest => dest.Name, opt => opt.Ignore())
+            .ForMember(dest => dest.PhoneNumber, opt => opt.Ignore())
+            .ForMember(dest => dest.City, opt => opt.Ignore())
+            .ForMember(dest => dest.District, opt => opt.Ignore())
+            .ForMember(dest => dest.Neighbourhood, opt => opt.Ignore())
+            .ForMember(dest => dest.Address, opt => opt.Ignore())
+            .ForMember(dest => dest.Latitude, opt => opt.Ignore())
+            .ForMember(dest => dest.Longitude, opt => opt.Ignore())
+            .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+            .ForMember(dest => dest.WorkingHours, opt => opt.Ignore())
+            .ForMember(dest => dest.SocialLinks, opt => opt.Ignore())
+            .ForMember(dest => dest.ThemeId, opt => opt.Ignore())
+            .ForMember(dest => dest.ImageData, opt => opt.Ignore())
+            .ForMember(dest => dest.ImageFileName, opt => opt.Ignore())
+            .ForMember(dest => dest.ImageContentType, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedDateTime, opt => opt.Ignore())
+            .ForMember(dest => dest.LastUpdateDateTime, opt => opt.MapFrom(src => DateTime.UtcNow));
     }
 } 

@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
     public DbSet<LicensePackage> LicensePackages { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }
+    public DbSet<OrderTag> OrderTags { get; set; }
     public DbSet<Product> Products { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<PaymentMethod> PaymentMethods { get; set; }
@@ -90,11 +91,58 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
         modelBuilder.Entity<OrderItem>()
             .Property(oi => oi.UnitPrice)
             .HasPrecision(18, 2);
+        modelBuilder.Entity<OrderItem>()
+            .Property(oi => oi.DiscountedUnitPrice)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<OrderItem>()
+            .Property(oi => oi.TaxAmount)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<OrderItem>()
+            .Property(oi => oi.FinalLineTotal)
+            .HasPrecision(18, 2);
+
+        // Order-OrderTag many-to-many (order-level tags)
+        modelBuilder.Entity<Order>()
+            .HasMany(o => o.Tags)
+            .WithMany(ot => ot.Orders)
+            .UsingEntity(j => j.ToTable("OrderOrderTags"));
+
+        // OrderItem-OrderTag many-to-many (item-level tags)
+        modelBuilder.Entity<OrderItem>()
+            .HasMany(oi => oi.Tags)
+            .WithMany(ot => ot.OrderItems)
+            .UsingEntity(j => j.ToTable("OrderItemOrderTags"));
+
+        // Restaurant-OrderTag
+        modelBuilder.Entity<Restaurant>()
+            .HasMany(r => r.OrderTags)
+            .WithOne(ot => ot.Restaurant)
+            .HasForeignKey(ot => ot.RestaurantId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Product decimal precision
+        modelBuilder.Entity<Product>()
+            .Property(p => p.Price)
+            .HasPrecision(18, 2);
+
+        // Order decimal precision
+        modelBuilder.Entity<Order>()
+            .Property(o => o.SubTotal)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<Order>()
+            .Property(o => o.TaxAmount)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<Order>()
+            .Property(o => o.DiscountAmount)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<Order>()
+            .Property(o => o.TotalAmount)
+            .HasPrecision(18, 2);
 
         // Restaurant-PaymentMethod many-to-many
         modelBuilder.Entity<Restaurant>()
-            .HasMany<PaymentMethod>("PaymentMethods")
-            .WithMany("Restaurants")
+            .HasMany(r => r.PaymentMethods)
+            .WithMany(pm => pm.Restaurants)
             .UsingEntity(j => j.ToTable("RestaurantPaymentMethods"));
 
         // Payment relationships
@@ -120,5 +168,42 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
         modelBuilder.Entity<Payment>()
             .HasIndex(p => p.OrderNumber)
             .IsUnique();
+
+        // Performance indexes for better query performance
+        modelBuilder.Entity<Restaurant>()
+            .HasIndex(r => new { r.UserId, r.IsActive })
+            .HasDatabaseName("IX_Restaurant_UserId_IsActive");
+
+        modelBuilder.Entity<Restaurant>()
+            .HasIndex(r => new { r.City, r.District, r.IsActive })
+            .HasDatabaseName("IX_Restaurant_City_District_IsActive");
+
+        modelBuilder.Entity<Category>()
+            .HasIndex(c => new { c.RestaurantId, c.IsActive, c.DisplayOrder })
+            .HasDatabaseName("IX_Category_RestaurantId_IsActive_DisplayOrder");
+
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => new { p.RestaurantId, p.CategoryId, p.IsActive, p.IsAvailable })
+            .HasDatabaseName("IX_Product_RestaurantId_CategoryId_IsActive_IsAvailable");
+
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => new { p.RestaurantId, p.IsFeatured, p.IsActive })
+            .HasDatabaseName("IX_Product_RestaurantId_IsFeatured_IsActive");
+
+        modelBuilder.Entity<Order>()
+            .HasIndex(o => new { o.RestaurantId, o.Status, o.CreatedAt })
+            .HasDatabaseName("IX_Order_RestaurantId_Status_CreatedAt");
+
+        modelBuilder.Entity<Order>()
+            .HasIndex(o => new { o.UserId, o.CreatedAt })
+            .HasDatabaseName("IX_Order_UserId_CreatedAt");
+
+        modelBuilder.Entity<OrderItem>()
+            .HasIndex(oi => new { oi.OrderId, oi.ProductId })
+            .HasDatabaseName("IX_OrderItem_OrderId_ProductId");
+
+        modelBuilder.Entity<OrderTag>()
+            .HasIndex(ot => new { ot.RestaurantId, ot.TagType, ot.IsActive, ot.DisplayOrder })
+            .HasDatabaseName("IX_OrderTag_RestaurantId_TagType_IsActive_DisplayOrder");
     }
 } 

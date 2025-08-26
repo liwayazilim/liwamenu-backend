@@ -70,20 +70,77 @@ public class CategoriesController : BaseController
 
     [HttpPost("AddCategory")]
     [RequirePermission(Permissions.Menu.Create)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ResponsBase>> Create([FromBody] CategoryCreateDto dto)
     {
+        // Authorization: Managers can create categories for any restaurant. Owners/Dealers only their own.
+        var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var isManager = roles.Contains(Roles.Manager);
+        if (!isManager)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+            var restaurant = await _adminService.GetRestaurantDetailAsync(dto.RestaurantId);
+            if (restaurant == null) 
+                return NotFound("Restoran bulunamadı", "Restaurant not found");
+
+            var isOwnerOfRestaurant = restaurant.UserId == currentUserId;
+            var isDealerOfRestaurant = restaurant.DealerId.HasValue && restaurant.DealerId.Value == currentUserId;
+            if (!isOwnerOfRestaurant && !isDealerOfRestaurant)
+                return Forbid();
+        }
+
         var (category, error) = await _categoriesService.CreateAsync(dto);
-        if (category == null) return BadRequest(error ?? "Kategori oluşturulamadı", "Category could not be created");
+        if (category == null) 
+            return BadRequest(error ?? "Kategori oluşturulamadı", "Category could not be created");
+        
         return Success(category, "Kategori başarıyla oluşturuldu", "Category created successfully");
     }
 
     [HttpPut("UpdateCategory")]
     [RequirePermission(Permissions.Menu.Update)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ResponsBase>> Update([FromQuery] Guid id, [FromBody] CategoryUpdateDto dto)
     {
+        // First get the category to check restaurant ownership
+        var category = await _categoriesService.GetByIdAsync(id);
+        if (category == null) 
+            return NotFound("Kategori bulunamadı", "Category not found");
+
+        // Authorization: Managers can update categories for any restaurant. Owners/Dealers only their own.
+        var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var isManager = roles.Contains(Roles.Manager);
+        if (!isManager)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
+                return Unauthorized("Geçersiz kullanıcı", "Invalid user");
+
+            var restaurant = await _adminService.GetRestaurantDetailAsync(category.RestaurantId);
+            if (restaurant == null) 
+                return NotFound("Restoran bulunamadı", "Restaurant not found");
+
+            var isOwnerOfRestaurant = restaurant.UserId == currentUserId;
+            var isDealerOfRestaurant = restaurant.DealerId.HasValue && restaurant.DealerId.Value == currentUserId;
+            if (!isOwnerOfRestaurant && !isDealerOfRestaurant)
+                return Forbid();
+        }
+
         var ok = await _categoriesService.UpdateAsync(id, dto);
-        if (!ok) return NotFound("Kategori bulunamadı", "Category not found");
-        return Success("Kategori başarıyla güncellendi", "Category updated successfully");
+        if (!ok) 
+            return NotFound("Kategori bulunamadı", "Category not found");
+        
+        // Return updated category
+        var updatedCategory = await _categoriesService.GetByIdAsync(id);
+        return Success(updatedCategory, "Kategori başarıyla güncellendi", "Category updated successfully");
     }
 
     [HttpDelete("DeleteCategory")]
