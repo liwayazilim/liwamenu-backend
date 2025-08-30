@@ -35,4 +35,33 @@ public class CategoryReadDto
     public int ActiveProductsCount { get; set; }
     public DateTime CreatedDateTime { get; set; }
     public DateTime LastUpdateDateTime { get; set; }
+}
+
+public class BulkCategoryCreateDto
+{
+    [Required(ErrorMessage = "Restoran ID zorunludur")]
+    public Guid RestaurantId { get; set; }
+    
+    [Required(ErrorMessage = "En az bir kategori gerekli")]
+    [MinLength(1, ErrorMessage = "En az bir kategori gerekli")]
+    public List<CategoryCreateDto> Categories { get; set; } = new();
+}
+
+public class BulkCategoryUpdateDto
+{
+    [Required(ErrorMessage = "En az bir kategori gerekli")]
+    [MinLength(1, ErrorMessage = "En az bir kategori gerekli")]
+    public List<CategoryUpdateItemDto> Categories { get; set; } = new();
+}
+
+public class CategoryUpdateItemDto
+{
+    [Required(ErrorMessage = "Kategori ID zorunludur")]
+    public Guid Id { get; set; }
+    
+    [StringLength(100, ErrorMessage = "Kategori adı 100 karakteri geçemez")]
+    public string? Name { get; set; }
+    
+    [StringLength(10, ErrorMessage = "İkon 10 karakteri geçemez")]
+    public string? Icon { get; set; }
 } 

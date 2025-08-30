@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using QR_Menu.Infrastructure;
@@ -11,9 +12,11 @@ using QR_Menu.Infrastructure;
 namespace QR_Menu.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250829112855_AddPriceToOrderTag")]
+    partial class AddPriceToOrderTag
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -498,8 +501,23 @@ namespace QR_Menu.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Color")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedDateTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Icon")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("LastUpdateDateTime")
                         .HasColumnType("timestamp with time zone");
@@ -508,17 +526,20 @@ namespace QR_Menu.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Price")
+                    b.Property<decimal?>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<Guid>("RestaurantId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("TagType")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("RestaurantId")
-                        .HasDatabaseName("IX_OrderTag_RestaurantId");
+                    b.HasIndex("RestaurantId", "TagType", "IsActive", "DisplayOrder")
+                        .HasDatabaseName("IX_OrderTag_RestaurantId_TagType_IsActive_DisplayOrder");
 
                     b.ToTable("OrderTags");
                 });

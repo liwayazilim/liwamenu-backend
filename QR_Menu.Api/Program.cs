@@ -24,6 +24,7 @@ using QR_Menu.Api.Middleware;
 using QR_Menu.Application.Orders;
 using QR_Menu.Application.Products;
 using QR_Menu.Application.Categories;
+using QR_Menu.Application.OrderTags;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -80,7 +81,7 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddAutoMapper(typeof(RestaurantProfile).Assembly, typeof(UserProfile).Assembly, typeof(PaymentProfile).Assembly, typeof(OrderProfile).Assembly, typeof(ProductProfile).Assembly, typeof(CategoryProfile).Assembly);
+builder.Services.AddAutoMapper(typeof(RestaurantProfile).Assembly, typeof(UserProfile).Assembly, typeof(PaymentProfile).Assembly, typeof(OrderProfile).Assembly, typeof(ProductProfile).Assembly, typeof(CategoryProfile).Assembly, typeof(OrderTagProfile).Assembly);
 
 // Register services
 builder.Services.AddScoped<RestaurantService>();
@@ -94,6 +95,7 @@ builder.Services.AddScoped<IImageService, QR_Menu.Application.Common.ImageServic
 builder.Services.AddScoped<OrdersService>();
 builder.Services.AddScoped<ProductsService>();
 builder.Services.AddScoped<CategoriesService>();
+builder.Services.AddScoped<OrderTagsService>();
 
 // Payment Services
 builder.Services.AddScoped<PaymentService>();

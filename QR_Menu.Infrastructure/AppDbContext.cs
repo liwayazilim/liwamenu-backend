@@ -120,6 +120,11 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             .HasForeignKey(ot => ot.RestaurantId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // OrderTag decimal precision
+        modelBuilder.Entity<OrderTag>()
+            .Property(ot => ot.Price)
+            .HasPrecision(18, 2);
+
         // Product decimal precision
         modelBuilder.Entity<Product>()
             .Property(p => p.Price)
@@ -179,8 +184,8 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             .HasDatabaseName("IX_Restaurant_City_District_IsActive");
 
         modelBuilder.Entity<Category>()
-            .HasIndex(c => new { c.RestaurantId, c.IsActive, c.DisplayOrder })
-            .HasDatabaseName("IX_Category_RestaurantId_IsActive_DisplayOrder");
+            .HasIndex(c => new { c.RestaurantId, c.IsActive })
+            .HasDatabaseName("IX_Category_RestaurantId_IsActive");
 
         modelBuilder.Entity<Product>()
             .HasIndex(p => new { p.RestaurantId, p.CategoryId, p.IsActive, p.IsAvailable })
@@ -203,7 +208,7 @@ public class AppDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
             .HasDatabaseName("IX_OrderItem_OrderId_ProductId");
 
         modelBuilder.Entity<OrderTag>()
-            .HasIndex(ot => new { ot.RestaurantId, ot.TagType, ot.IsActive, ot.DisplayOrder })
-            .HasDatabaseName("IX_OrderTag_RestaurantId_TagType_IsActive_DisplayOrder");
+            .HasIndex(ot => new { ot.RestaurantId })
+            .HasDatabaseName("IX_OrderTag_RestaurantId");
     }
 } 

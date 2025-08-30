@@ -58,6 +58,34 @@ public class CategoriesService
         return (_mapper.Map<CategoryReadDto>(category), null);
     }
 
+    public async Task<(List<CategoryReadDto> Categories, string? Error)> BulkCreateAsync(BulkCategoryCreateDto dto)
+    {
+        var restaurantExists = await _context.Restaurants.AnyAsync(r => r.Id == dto.RestaurantId);
+        if (!restaurantExists) return (new List<CategoryReadDto>(), "Restoran bulunamadı.");
+
+        var createdCategories = new List<CategoryReadDto>();
+        var errors = new List<string>();
+
+        foreach (var categoryDto in dto.Categories)
+        {
+            categoryDto.RestaurantId = dto.RestaurantId; // Ensure restaurant ID is set
+            
+            var (category, error) = await CreateAsync(categoryDto);
+            if (category != null)
+                createdCategories.Add(category);
+            else if (!string.IsNullOrEmpty(error))
+                errors.Add($"'{categoryDto.Name}': {error}");
+        }
+
+        if (errors.Any())
+        {
+            var errorMessage = string.Join("; ", errors);
+            _logger.LogWarning("Bulk create categories completed with errors: {Errors}", errorMessage);
+        }
+
+        return (createdCategories, errors.Any() ? string.Join("; ", errors) : null);
+    }
+
     public async Task<bool> UpdateAsync(Guid id, CategoryUpdateDto dto)
     {
         var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
@@ -74,6 +102,34 @@ public class CategoriesService
         
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<(bool Success, string? Error)> BulkUpdateAsync(BulkCategoryUpdateDto dto)
+    {
+        var successCount = 0;
+        var errors = new List<string>();
+
+        foreach (var categoryDto in dto.Categories)
+        {
+            var success = await UpdateAsync(categoryDto.Id, new CategoryUpdateDto
+            {
+                Name = categoryDto.Name,
+                Icon = categoryDto.Icon
+            });
+
+            if (success)
+                successCount++;
+            else
+                errors.Add($"Kategori ID {categoryDto.Id} güncellenemedi.");
+        }
+
+        if (errors.Any())
+        {
+            var errorMessage = string.Join("; ", errors);
+            _logger.LogWarning("Bulk update categories completed with errors: {Errors}", errorMessage);
+        }
+
+        return (successCount > 0, errors.Any() ? string.Join("; ", errors) : null);
     }
 
     public async Task<bool> DeleteAsync(Guid id)

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using QR_Menu.Application.Common;
-using QR_Menu.Application.Categories;
-using QR_Menu.Application.Categories.DTOs;
+using QR_Menu.Application.OrderTags;
+using QR_Menu.Domain;
 using QR_Menu.Domain.Common;
 using QR_Menu.Infrastructure.Authorization;
 using System.Security.Claims;
@@ -11,29 +11,28 @@ namespace QR_Menu.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class CategoriesController : BaseController
+public class OrderTagsController : BaseController
 {
-    private readonly CategoriesService _categoriesService;
+    private readonly OrderTagsService _orderTagsService;
     private readonly AdminService _adminService;
 
-    public CategoriesController(CategoriesService categoriesService, AdminService adminService)
+    public OrderTagsController(OrderTagsService orderTagsService, AdminService adminService)
     {
-        _categoriesService = categoriesService;
+        _orderTagsService = orderTagsService;
         _adminService = adminService;
     }
 
-    [HttpGet("GetCategoriesByRestaurantId")]
+    [HttpGet("GetOrderTagsByRestaurantId")]
     [RequirePermission(Permissions.Menu.ViewOwn)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<object>> GetByRestaurant(
         [FromQuery] Guid restaurantId,
         [FromQuery] string? search = null,
-        [FromQuery] bool? active = null,
         [FromQuery] int? pageNumber = null,
         [FromQuery] int? pageSize = null)
     {
-        // Authorization similar to RestaurantsController
+        // Authorization: Managers can access any restaurant. Owners/Dealers only their own.
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var isManager = roles.Contains(Roles.Manager);
         if (!isManager)
@@ -52,31 +51,31 @@ public class CategoriesController : BaseController
         }
 
         return await GetPaginatedDataAsync(
-            async (page, size) => await _categoriesService.GetByRestaurantAsync(restaurantId, search, active, page, size),
+            async (page, size) => await _orderTagsService.GetByRestaurantAsync(restaurantId, search, page, size),
             pageNumber,
             pageSize,
-            "Kategoriler başarıyla getirildi",
-            "Categories retrieved successfully");
+            "Sipariş etiketleri başarıyla getirildi",
+            "Order tags retrieved successfully");
     }
 
-    [HttpGet("GetCategoryById")]
+    [HttpGet("GetOrderTagById")]
     [RequirePermission(Permissions.Menu.View)]
     public async Task<ActionResult<ResponsBase>> GetById([FromQuery] Guid id)
     {
-        var category = await _categoriesService.GetByIdAsync(id);
-        if (category == null) return NotFound("Kategori bulunamadı", "Category not found");
-        return Success(category, "Kategori başarıyla getirildi", "Category retrieved successfully");
+        var tag = await _orderTagsService.GetByIdAsync(id);
+        if (tag == null) return NotFound("Sipariş etiketi bulunamadı", "Order tag not found");
+        return Success(tag, "Sipariş etiketi başarıyla getirildi", "Order tag retrieved successfully");
     }
 
-    [HttpPost("BulkAddCategories")]
+    [HttpPost("BulkAddOrderTags")]
     [RequirePermission(Permissions.Menu.Create)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<ResponsBase>> BulkCreate([FromBody] BulkCategoryCreateDto dto)
+    public async Task<ActionResult<ResponsBase>> BulkCreate([FromBody] BulkOrderTagCreateDto dto)
     {
-        // Authorization: Managers can create categories for any restaurant. Owners/Dealers only their own.
+        // Authorization: Managers can create tags for any restaurant. Owners/Dealers only their own.
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var isManager = roles.Contains(Roles.Manager);
         if (!isManager)
@@ -95,30 +94,30 @@ public class CategoriesController : BaseController
                 return Forbid();
         }
 
-        var (categories, error) = await _categoriesService.BulkCreateAsync(dto);
-        if (!categories.Any() && !string.IsNullOrEmpty(error))
-            return BadRequest(error, "Kategoriler oluşturulamadı");
+        var (tags, error) = await _orderTagsService.BulkCreateAsync(dto);
+        if (!tags.Any() && !string.IsNullOrEmpty(error))
+            return BadRequest(error, "Sipariş etiketleri oluşturulamadı");
         
-        var message = categories.Count == 1 
-            ? "1 kategori başarıyla oluşturuldu" 
-            : $"{categories.Count} kategori başarıyla oluşturuldu";
+        var message = tags.Count == 1 
+            ? "1 sipariş etiketi başarıyla oluşturuldu" 
+            : $"{tags.Count} sipariş etiketi başarıyla oluşturuldu";
         
-        var messageEN = categories.Count == 1 
-            ? "1 category created successfully" 
-            : $"{categories.Count} categories created successfully";
+        var messageEN = tags.Count == 1 
+            ? "1 order tag created successfully" 
+            : $"{tags.Count} order tags created successfully";
 
-        var data = new { categories, createdCount = categories.Count, error };
+        var data = new { tags, createdCount = tags.Count, error };
         return Success(data, message, messageEN);
     }
 
-    [HttpPut("BulkUpdateCategories")]
+    [HttpPut("BulkUpdateOrderTags")]
     [RequirePermission(Permissions.Menu.Update)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<ResponsBase>> BulkUpdate([FromBody] BulkCategoryUpdateDto dto)
+    public async Task<ActionResult<ResponsBase>> BulkUpdate([FromBody] BulkOrderTagUpdateDto dto)
     {
-        // Authorization: Managers can update categories for any restaurant. Owners/Dealers only their own.
+        // Authorization: Managers can update tags for any restaurant. Owners/Dealers only their own.
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var isManager = roles.Contains(Roles.Manager);
         if (!isManager)
@@ -127,13 +126,13 @@ public class CategoriesController : BaseController
             if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
                 return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
-            // Check if user has access to all categories being updated
-            foreach (var categoryDto in dto.Categories)
+            // Check if user has access to all tags being updated
+            foreach (var tagDto in dto.Tags)
             {
-                var category = await _categoriesService.GetByIdAsync(categoryDto.Id);
-                if (category == null) continue;
+                var tag = await _orderTagsService.GetByIdAsync(tagDto.Id);
+                if (tag == null) continue;
 
-                var restaurant = await _adminService.GetRestaurantDetailAsync(category.RestaurantId);
+                var restaurant = await _adminService.GetRestaurantDetailAsync(tag.RestaurantId);
                 if (restaurant == null) continue;
 
                 var isOwnerOfRestaurant = restaurant.UserId == currentUserId;
@@ -143,18 +142,18 @@ public class CategoriesController : BaseController
             }
         }
 
-        var (success, error) = await _categoriesService.BulkUpdateAsync(dto);
+        var (success, error) = await _orderTagsService.BulkUpdateAsync(dto);
         if (!success && !string.IsNullOrEmpty(error))
-            return BadRequest(error, "Kategoriler güncellenemedi");
+            return BadRequest(error, "Sipariş etiketleri güncellenemedi");
         
-        var message = "Kategoriler toplu güncelleme tamamlandı";
-        var messageEN = "Categories bulk update completed";
+        var message = "Sipariş etiketleri toplu güncelleme tamamlandı";
+        var messageEN = "Order tags bulk update completed";
         
         var data = new { success, error };
         return Success(data, message, messageEN);
     }
 
-    [HttpDelete("DeleteCategory")]
+    [HttpDelete("DeleteOrderTag")]
     [RequirePermission(Permissions.Menu.Delete)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -162,12 +161,12 @@ public class CategoriesController : BaseController
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ResponsBase>> Delete([FromQuery] Guid id)
     {
-        // First get the category to check restaurant ownership
-        var category = await _categoriesService.GetByIdAsync(id);
-        if (category == null) 
-            return NotFound("Kategori bulunamadı", "Category not found");
+        // First get the tag to check restaurant ownership
+        var tag = await _orderTagsService.GetByIdAsync(id);
+        if (tag == null) 
+            return NotFound("Sipariş etiketi bulunamadı", "Order tag not found");
 
-        // Authorization: Managers can delete categories for any restaurant. Owners/Dealers only their own.
+        // Authorization: Managers can delete tags for any restaurant. Owners/Dealers only their own.
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var isManager = roles.Contains(Roles.Manager);
         if (!isManager)
@@ -176,7 +175,7 @@ public class CategoriesController : BaseController
             if (userIdStr == null || !Guid.TryParse(userIdStr, out var currentUserId))
                 return Unauthorized("Geçersiz kullanıcı", "Invalid user");
 
-            var restaurant = await _adminService.GetRestaurantDetailAsync(category.RestaurantId);
+            var restaurant = await _adminService.GetRestaurantDetailAsync(tag.RestaurantId);
             if (restaurant == null) 
                 return NotFound("Restoran bulunamadı", "Restaurant not found");
 
@@ -186,8 +185,10 @@ public class CategoriesController : BaseController
                 return Forbid();
         }
 
-        var ok = await _categoriesService.DeleteAsync(id);
-        if (!ok) return BadRequest("Kategori silinemedi. Ürün içeriyor olabilir.", "Category cannot be deleted. It may contain products.");
-        return Success("Kategori başarıyla silindi", "Category deleted successfully");
+        var success = await _orderTagsService.DeleteAsync(id);
+        if (!success) 
+            return BadRequest("Sipariş etiketi silinemez. Siparişlerde kullanılıyor olabilir.", "Order tag cannot be deleted. It may be in use by orders.");
+        
+        return Success("Sipariş etiketi başarıyla silindi", "Order tag deleted successfully");
     }
 } 

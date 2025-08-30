@@ -8,11 +8,11 @@ public class Category
     // Basic information
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string? ShortDescription { get; set; } // For display in lists
+    
     
     // Display and ordering
     public bool IsActive { get; set; } = true;
-    public int DisplayOrder { get; set; } = 0;
+
   
     
     // Image support

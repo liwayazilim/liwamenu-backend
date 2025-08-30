@@ -244,18 +244,12 @@ public class DatabaseSeeder
 
         var defaultOrderTags = new[]
         {
-            // Order-level tags
             new OrderTag
             {
                 Id = Guid.NewGuid(),
                 RestaurantId = firstRestaurant.Id,
                 Name = "Takeaway",
-                Description = "Order for takeaway",
-                TagType = TagType.OrderLevel,
-                IsActive = true,
-                DisplayOrder = 1,
-                Color = "#28a745",
-                Icon = "📦",
+                Price = 0.00m,
                 CreatedDateTime = DateTime.UtcNow,
                 LastUpdateDateTime = DateTime.UtcNow
             },
@@ -264,28 +258,17 @@ public class DatabaseSeeder
                 Id = Guid.NewGuid(),
                 RestaurantId = firstRestaurant.Id,
                 Name = "in-resto",
-                Description = "Order for dining in restaurant",
-                TagType = TagType.OrderLevel,
-                IsActive = true,
-                DisplayOrder = 2,
-                Color = "#007bff",
-                Icon = "🍽️",
+                Price = 0.00m,
                 CreatedDateTime = DateTime.UtcNow,
                 LastUpdateDateTime = DateTime.UtcNow
             },
             
-            // Item-level tags
             new OrderTag
             {
                 Id = Guid.NewGuid(),
                 RestaurantId = firstRestaurant.Id,
                 Name = "No Onions",
-                Description = "Remove onions from the item",
-                TagType = TagType.ItemLevel,
-                IsActive = true,
-                DisplayOrder = 4,
-                Color = "#dc3545",
-                Icon = "🚫🧅",
+                Price = 0.00m,
                 CreatedDateTime = DateTime.UtcNow,
                 LastUpdateDateTime = DateTime.UtcNow
             },
@@ -294,12 +277,7 @@ public class DatabaseSeeder
                 Id = Guid.NewGuid(),
                 RestaurantId = firstRestaurant.Id,
                 Name = "Extra Cheese",
-                Description = "Add extra cheese to the item",
-                TagType = TagType.ItemLevel,
-                IsActive = true,
-                DisplayOrder = 5,
-                Color = "#fd7e14",
-                Icon = "🧀",
+                Price = 2.50m,
                 CreatedDateTime = DateTime.UtcNow,
                 LastUpdateDateTime = DateTime.UtcNow
             },
@@ -308,12 +286,7 @@ public class DatabaseSeeder
                 Id = Guid.NewGuid(),
                 RestaurantId = firstRestaurant.Id,
                 Name = "Spicy",
-                Description = "Make the item spicy",
-                TagType = TagType.ItemLevel,
-                IsActive = true,
-                DisplayOrder = 6,
-                Color = "#e83e8c",
-                Icon = "🌶️",
+                Price = 1.00m,
                 CreatedDateTime = DateTime.UtcNow,
                 LastUpdateDateTime = DateTime.UtcNow
             },
@@ -322,12 +295,7 @@ public class DatabaseSeeder
                 Id = Guid.NewGuid(),
                 RestaurantId = firstRestaurant.Id,
                 Name = "Vegetarian",
-                Description = "Vegetarian option",
-                TagType = TagType.ItemLevel,
-                IsActive = true,
-                DisplayOrder = 7,
-                Color = "#20c997",
-                Icon = "🥬",
+                Price = 0.00m,
                 CreatedDateTime = DateTime.UtcNow,
                 LastUpdateDateTime = DateTime.UtcNow
             }
@@ -342,7 +310,7 @@ public class DatabaseSeeder
             if (existingTag == null)
             {
                 context.OrderTags.Add(orderTag);
-                _logger.LogInformation($"Created order tag: {orderTag.Name} ({orderTag.TagType})");
+                _logger.LogInformation($"Created order tag: {orderTag.Name}");
             }
         }
 
